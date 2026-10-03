@@ -52,18 +52,29 @@ export async function GET(req: Request) {
 function makeRenderable(html: string, baseUrl: string): string {
   let out = html;
 
-  // Strip scripts — we are showing a static preview, not running their code.
-  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
-  out = out.replace(/<script\b[^>]*\/>/gi, '');
+  // Strip EXECUTABLE scripts only. JSON-LD (`application/ld+json`) is data, not
+  // code — and it is frequently the very thing a glow-up adds (LocalBusiness,
+  // FAQPage schema). Stripping it would hide the fix in the preview and make
+  // the before/after comparison lie.
+  const NON_EXECUTABLE = /application\/(ld\+json|json)|text\/template/i;
+  out = out.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (match, attrs: string, body: string) => {
+    if (NON_EXECUTABLE.test(attrs)) return match; // keep structured data intact
+    void body;
+    return '';
+  });
+  // Self-closing executable scripts with no type attribute.
+  out = out.replace(/<script\b(?![^>]*type\s*=\s*["'][^"']*application\/(?:ld\+json|json))[^>]*\/>/gi, '');
 
   // Make root-relative URLs absolute so assets resolve from the origin.
+  // (Guard against a double slash when baseUrl already ends with one.)
+  const origin = baseUrl.replace(/\/+$/, '');
   out = out.replace(
     /(\s(?:href|src|action|poster)\s*=\s*)(["'])\/(?!\/)/gi,
-    (_m, pre, q) => `${pre}${q}${baseUrl}/`
+    (_m, pre, q) => `${pre}${q}${origin}/`
   );
 
   // A <base> tag catches anything the regex missed (srcset, inline url()).
-  const baseTag = `<base href="${baseUrl}/">`;
+  const baseTag = `<base href="${origin}/">`;
   if (/<head[^>]*>/i.test(out)) {
     out = out.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
   } else if (/<html[^>]*>/i.test(out)) {
