@@ -39,6 +39,17 @@ export async function POST(req: Request) {
 
     const previewId = randomUUID();
     try {
+      // Changes that live in <head> cannot be outlined in the rendered page, so
+      // the UI lists them separately instead of pretending they are visible.
+      const HEAD_ONLY = new Set(['title', 'meta', 'canonical', 'viewport', 'lang', 'schema', 'localbusiness', 'entity', 'faq', 'sitemap', 'robots', 'crawlers', 'llms', 'alt', 'freshness', 'responsive']);
+      const fixes = record.plan.fixes.map((f) => ({
+        findingId: f.findingId,
+        label: f.label,
+        category: f.category,
+        points: f.points,
+        headOnly: HEAD_ONLY.has(f.findingId) && f.kind !== 'html' ? true : undefined,
+      }));
+
       await savePreview(previewId, {
         before: originalHtml,
         after: html,
@@ -46,6 +57,7 @@ export async function POST(req: Request) {
         url: before.finalUrl,
         beforeScore: before.overall,
         afterScore: after.overall,
+        fixes,
       });
     } catch {
       // A preview-store failure must not lose the result the user asked for.

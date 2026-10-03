@@ -438,7 +438,7 @@ export function applyGlowUp(site: SiteScore, html: string): GlowUpResult {
               $(n).replaceWith(
                 escapeHtml(t).replace(
                   phoneMatch[0],
-                  `<a href="tel:${digits}">${escapeHtml(phoneMatch[0])}</a>`
+                  `<a href="tel:${digits}" data-vantage-fix="tap" data-vantage-fix-label="Click-to-call added">${escapeHtml(phoneMatch[0])}</a>`
                 )
               );
             }
@@ -493,7 +493,9 @@ export function applyGlowUp(site: SiteScore, html: string): GlowUpResult {
       const text = $('title').first().text().trim() || name;
       const heading = text.split(/[|\-–—]/)[0].trim().slice(0, 70);
       const target = $('header').length ? $('header') : $('body');
-      target.prepend(`<h1>${escapeHtml(heading)}</h1>`);
+      target.prepend(
+        `<h1 data-vantage-fix="h1" data-vantage-fix-label="H1 heading added">${escapeHtml(heading)}</h1>`
+      );
       mark('h1');
     } else if (h1s.length > 1) {
       // Keep the first, demote the rest — duplicate H1s dilute relevance.
@@ -573,7 +575,7 @@ export function applyGlowUp(site: SiteScore, html: string): GlowUpResult {
     if (!/hours|open/i.test(bodyText)) {
       const target = $('footer').length ? $('footer') : $('body');
       target.append(
-        `<section id="vantage-hours"><h2>Hours</h2><p>Contact us for current opening hours.</p></section>`
+        `<section id="vantage-hours" data-vantage-fix="hours" data-vantage-fix-label="Opening hours added"><h2>Hours</h2><p>Contact us for current opening hours.</p></section>`
       );
     }
     mark('hours');
@@ -591,7 +593,9 @@ export function applyGlowUp(site: SiteScore, html: string): GlowUpResult {
         ? `<a href="tel:${digits}" style="display:inline-block;padding:14px 28px;background:#7c5cff;color:#fff;border-radius:8px;font-weight:600;text-decoration:none">Call Now</a>`
         : `<a href="#contact" style="display:inline-block;padding:14px 28px;background:#7c5cff;color:#fff;border-radius:8px;font-weight:600;text-decoration:none">Get a Free Quote</a>`;
       const target = $('header').length ? $('header') : $('body');
-      target.append(`<div id="vantage-cta" style="padding:20px 0;text-align:center">${cta}</div>`);
+      target.append(
+        `<div id="vantage-cta" data-vantage-fix="cta" data-vantage-fix-label="Call to action added" style="padding:20px 0;text-align:center">${cta}</div>`
+      );
     }
     mark('cta');
   }
@@ -599,7 +603,7 @@ export function applyGlowUp(site: SiteScore, html: string): GlowUpResult {
   if (failing.has('form')) {
     if ($('form').length === 0) {
       const target = $('footer').length ? $('footer') : $('body');
-      target.prepend(`<section id="contact"><h2>Get a Free Quote</h2>
+      target.prepend(`<section id="contact" data-vantage-fix="form" data-vantage-fix-label="Contact form added"><h2>Get a Free Quote</h2>
 <form method="post" action="/contact">
   <label for="v-name">Name</label><br>
   <input id="v-name" name="name" type="text" required><br><br>
@@ -656,7 +660,7 @@ export function applyGlowUp(site: SiteScore, html: string): GlowUpResult {
         .map((f) => `  <details><summary>${escapeHtml(f.q)}</summary><p>${escapeHtml(f.a)}</p></details>`)
         .join('\n');
       const target = $('footer').length ? $('footer') : $('body');
-      target.prepend(`<section id="vantage-faq"><h2>Frequently Asked Questions</h2>\n${faqHtml}\n</section>`);
+      target.prepend(`<section id="vantage-faq" data-vantage-fix="faq" data-vantage-fix-label="FAQ section + schema added"><h2>Frequently Asked Questions</h2>\n${faqHtml}\n</section>`);
     }
 
     const faqSchema = {
@@ -737,7 +741,9 @@ ${city ? `- Service area: ${city}` : ''}
     if (replaced) {
       mark('freshness');
     } else {
-      $('body').append(`<p style="text-align:center;font-size:13px;opacity:.6">© ${year} ${escapeHtml(name)}</p>`);
+      $('body').append(
+        `<p data-vantage-fix="freshness" data-vantage-fix-label="Copyright year updated" style="text-align:center;font-size:13px;opacity:.6">© ${year} ${escapeHtml(name)}</p>`
+      );
       mark('freshness');
     }
   }

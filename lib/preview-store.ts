@@ -11,27 +11,46 @@ import { db } from './db';
  * preview is not a throwaway: it becomes part of the customer's history.
  */
 
+export interface PreviewFix {
+  findingId: string;
+  label: string;
+  category: string;
+  points: number;
+  /** True when the change lives in <head> and cannot be outlined in the page. */
+  headOnly?: boolean;
+}
+
 export interface PreviewStore {
+  id: string;
   before: string;
   after: string;
   files: Record<string, string>;
   url: string;
   beforeScore: number;
   afterScore: number;
+  fixes: PreviewFix[];
   createdAt: string;
 }
 
 export async function savePreview(
   id: string,
-  data: { before: string; after: string; files: Record<string, string>; url: string; beforeScore: number; afterScore: number },
+  data: {
+    before: string;
+    after: string;
+    files: Record<string, string>;
+    url: string;
+    beforeScore: number;
+    afterScore: number;
+    fixes: PreviewFix[];
+  },
   watchId?: string
 ): Promise<void> {
   const sql = db();
   await sql`
-    INSERT INTO vantage_previews (id, before_html, after_html, files, url, before_score, after_score)
+    INSERT INTO vantage_previews (id, before_html, after_html, files, url, before_score, after_score, fixes)
     VALUES (
       ${id}, ${data.before}, ${data.after}, ${sql.json(data.files as never)},
-      ${data.url}, ${data.beforeScore}, ${data.afterScore}
+      ${data.url}, ${data.beforeScore}, ${data.afterScore}, ${sql.json(data.fixes as never)}
     )
     ON CONFLICT (id) DO NOTHING
   `;
@@ -47,9 +66,9 @@ export async function savePreview(
 export async function getPreview(id: string): Promise<PreviewStore | null> {
   const sql = db();
   const rows = await sql<PreviewStore[]>`
-    SELECT before_html AS before, after_html AS after, files, url,
+    SELECT id, before_html AS before, after_html AS after, files, url,
            before_score AS "beforeScore", after_score AS "afterScore",
-           created_at AS "createdAt"
+           fixes, created_at AS "createdAt"
     FROM vantage_previews
     WHERE id = ${id}
     LIMIT 1

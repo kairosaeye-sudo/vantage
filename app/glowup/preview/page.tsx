@@ -6,13 +6,33 @@ import Link from 'next/link';
 
 type Side = 'before' | 'after';
 
+interface Fix {
+  findingId: string;
+  label: string;
+  category: string;
+  points: number;
+  headOnly?: boolean;
+}
+
+interface Meta {
+  url: string;
+  beforeScore: number;
+  afterScore: number;
+  verifiedGain: number;
+  files: string[];
+  fixes: Fix[];
+}
+
 function PreviewInner() {
   const params = useSearchParams();
   const id = params.get('id') ?? '';
   const [view, setView] = useState<Side>('after');
   const [split, setSplit] = useState(50);
   const [wide, setWide] = useState(false);
+  const [annotate, setAnnotate] = useState(true);
+  const [showList, setShowList] = useState(false);
   const [loaded, setLoaded] = useState({ before: false, after: false });
+  const [meta, setMeta] = useState<Meta | null>(null);
   const dragging = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
 
@@ -24,6 +44,15 @@ function PreviewInner() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
+
+  // What changed — drives the legend and the head-only list.
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/glowup/preview/meta?id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d) => d.ok && setMeta(d))
+      .catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     const move = (clientX: number) => {
@@ -48,7 +77,9 @@ function PreviewInner() {
     };
   }, []);
 
-  const src = (side: Side) => `/api/glowup/preview?id=${encodeURIComponent(id)}&side=${side}`;
+  const src = (side: Side) =>
+    `/api/glowup/preview?id=${encodeURIComponent(id)}&side=${side}` +
+    (side === 'after' && !annotate ? '&annotate=0' : '');
 
   if (!id) {
     return (
@@ -64,39 +95,93 @@ function PreviewInner() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Control bar */}
-      <div className="sticky top-0 z-20 bg-[#08080a] border-b border-[#26262c] px-4 py-3">
-        <div className="max-w-[1400px] mx-auto flex items-center gap-3 flex-wrap">
+      <div className="sticky top-0 z-20 bg-[#08080a] border-b border-[#26262c]">
+        <div className="px-4 py-3 max-w-[1600px] mx-auto flex items-center gap-3 flex-wrap">
           <Link href="/glowup" className="text-[13px] text-[#8a8a96] shrink-0">
             ← Back
           </Link>
 
+          {meta && (
+            <span className="text-[13px] tabular-nums shrink-0">
+              <span className="text-[#8a8a96]">{meta.beforeScore}</span>
+              <span className="text-[#5a5a66] mx-1.5">→</span>
+              <span className="text-[#4ade80] font-semibold">{meta.afterScore}</span>
+              <span className="text-[#4ade80] text-[12px] ml-1.5">+{meta.verifiedGain}</span>
+            </span>
+          )}
+
           {wide ? (
             <div className="flex items-center gap-3 ml-auto">
+              <button
+                onClick={() => setAnnotate((a) => !a)}
+                className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-colors"
+                style={
+                  annotate
+                    ? { borderColor: '#7c5cff', color: '#b8a6ff', background: '#15121f' }
+                    : { borderColor: '#26262c', color: '#8a8a96' }
+                }
+              >
+                {annotate ? 'Highlights on' : 'Highlights off'}
+              </button>
               <span className="text-[12px] font-semibold text-[#8a8a96]">BEFORE</span>
-              <span className="text-[12px] text-[#5a5a66] hidden sm:inline">
-                drag the divider
-              </span>
+              <span className="text-[12px] text-[#5a5a66]">drag</span>
               <span className="text-[12px] font-semibold text-[#4ade80]">AFTER</span>
             </div>
           ) : (
-            <div className="flex rounded-lg overflow-hidden border border-[#26262c] ml-auto">
-              {(['before', 'after'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setView(s)}
-                  className="px-4 py-2 text-[13px] font-semibold transition-colors"
-                  style={
-                    view === s
-                      ? { background: s === 'after' ? '#4ade80' : '#3a3a44', color: s === 'after' ? '#08080a' : '#fff' }
-                      : { color: '#8a8a96' }
-                  }
-                >
-                  {s === 'before' ? 'Before' : 'After'}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={() => setAnnotate((a) => !a)}
+                title={annotate ? 'Highlights on' : 'Highlights off'}
+                className="text-[13px] font-semibold px-3 py-2 rounded-lg border"
+                style={
+                  annotate
+                    ? { borderColor: '#7c5cff', color: '#b8a6ff', background: '#15121f' }
+                    : { borderColor: '#26262c', color: '#8a8a96' }
+                }
+              >
+                {annotate ? 'Highlighted' : 'Clean'}
+              </button>
+              <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
+                {(['before', 'after'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setView(s)}
+                    className="px-4 py-2 text-[13px] font-semibold transition-colors"
+                    style={
+                      view === s
+                        ? { background: s === 'after' ? '#4ade80' : '#3a3a44', color: s === 'after' ? '#08080a' : '#fff' }
+                        : { color: '#8a8a96' }
+                    }
+                  >
+                    {s === 'before' ? 'Before' : 'After'}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
+
+        {/* Legend: what the outlines mean */}
+        {annotate && view === 'after' && (meta?.fixes ?? []).filter((f) => !f.headOnly).length > 0 && (
+          <div className="border-t border-[#1c1c21] px-4 py-2 overflow-x-auto">
+            <div className="flex gap-2 max-w-[1600px] mx-auto items-center">
+              <span className="text-[11px] text-[#5a5a66] shrink-0">
+                Highlighted changes:
+              </span>
+              {(meta?.fixes ?? [])
+                .filter((f) => !f.headOnly)
+                .map((f) => (
+                  <span
+                    key={f.findingId}
+                    className="text-[11px] font-semibold shrink-0 px-2 py-1 rounded"
+                    style={{ background: '#1a1428', color: '#b8a6ff' }}
+                  >
+                    {f.label}
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Frames */}
@@ -164,6 +249,40 @@ function PreviewInner() {
             className="w-full border-0 bg-white"
             style={{ height: 'calc(100vh - 57px)' }}
           />
+        </div>
+      )}
+
+      {/* Head-level changes: real, but not visible on the rendered page. */}
+      {(meta?.fixes ?? []).filter((f) => f.headOnly).length > 0 && (
+        <div className="border-t border-[#26262c] bg-[#0d0d10]">
+          <button
+            onClick={() => setShowList((s) => !s)}
+            className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
+          >
+            <span className="text-[13px] font-semibold text-[#c9c9d2]">
+              Also changed in the page code ({(meta?.fixes ?? []).filter((f) => f.headOnly).length})
+            </span>
+            <span className="text-[#5a5a66] text-[13px]">{showList ? 'Hide' : 'Show'}</span>
+          </button>
+          {showList && (
+            <div className="px-4 pb-4 max-w-[1600px] mx-auto space-y-2">
+              {(meta?.fixes ?? [])
+                .filter((f) => f.headOnly)
+                .map((f) => (
+                  <div key={f.findingId} className="card p-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium">{f.label}</p>
+                      <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mt-0.5">
+                        {f.category} · not visible on the page
+                      </p>
+                    </div>
+                    <span className="text-[12px] text-[#7c5cff] font-semibold shrink-0">
+                      +{f.points}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       )}
     </main>

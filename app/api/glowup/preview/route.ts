@@ -18,6 +18,8 @@ export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   const id = params.get('id');
   const side = params.get('side') === 'after' ? 'after' : 'before';
+  // `annotate=0` lets the UI show the clean rebuilt page without outlines.
+  const annotate = params.get('annotate') !== '0';
 
   if (!id) {
     return new Response('id required', { status: 400 });
@@ -33,7 +35,7 @@ export async function GET(req: Request) {
   }
 
   const raw = side === 'after' ? preview.after : preview.before;
-  const doc = makeRenderable(raw, preview.url);
+  const doc = makeRenderable(raw, preview.url, side === 'after' && annotate);
 
   return new Response(doc, {
     status: 200,
@@ -48,8 +50,62 @@ export async function GET(req: Request) {
   });
 }
 
+/**
+ * Highlights injected into the AFTER preview.
+ *
+ * Each applied fix is marked in the rebuilt HTML with
+ * `data-vantage-fix="<findingId>"` plus a human label. Here we turn those marks
+ * into a visible outline, a numbered badge, and an annotation callout, so the
+ * customer can see exactly what changed instead of comparing two screenshots.
+ *
+ * The marks are attributes in the delivered HTML, so they cost nothing to carry
+ * and this layer is purely presentational.
+ */
+const HIGHLIGHT_CSS = `
+  [data-vantage-fix] {
+    position: relative !important;
+    outline: 3px solid #7c5cff !important;
+    outline-offset: 3px !important;
+    border-radius: 4px !important;
+    animation: vantage-pulse 2.4s ease-in-out infinite;
+  }
+  [data-vantage-fix]::before {
+    content: attr(data-vantage-fix-label);
+    position: absolute !important;
+    top: -11px !important;
+    left: -3px !important;
+    transform: translateY(-100%) !important;
+    background: #7c5cff !important;
+    color: #fff !important;
+    font: 600 11px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    padding: 3px 8px !important;
+    border-radius: 5px !important;
+    white-space: nowrap !important;
+    z-index: 2147483646 !important;
+    pointer-events: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.28) !important;
+    letter-spacing: .2px !important;
+    text-transform: none !important;
+  }
+  @keyframes vantage-pulse {
+    0%, 100% { outline-color: #7c5cff; }
+    50%      { outline-color: rgba(124,92,255,.35); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-vantage-fix] { animation: none !important; }
+  }
+`;
+
+function injectHighlights(html: string): string {
+  const style = `<style id="vantage-highlights">${HIGHLIGHT_CSS}</style>`;
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, `<head$1>${style}`);
+  }
+  return style + html;
+}
+
 /** Rewrite a page so it renders standalone inside an iframe. */
-function makeRenderable(html: string, baseUrl: string): string {
+function makeRenderable(html: string, baseUrl: string, highlight = false): string {
   let out = html;
 
   // Strip EXECUTABLE scripts only. JSON-LD (`application/ld+json`) is data, not
@@ -82,6 +138,9 @@ function makeRenderable(html: string, baseUrl: string): string {
   } else {
     out = `<head>${baseTag}</head>` + out;
   }
+
+  // Only the AFTER view gets the change annotations.
+  if (highlight) out = injectHighlights(out);
 
   return out;
 }

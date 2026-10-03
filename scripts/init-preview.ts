@@ -41,10 +41,16 @@ async function main() {
         url          TEXT NOT NULL,
         before_score INTEGER NOT NULL,
         after_score  INTEGER NOT NULL,
+        fixes        JSONB,
         created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `;
     console.log('  vantage_previews  ok');
+
+    // Existing installs predate the `fixes` column.
+    await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS fixes JSONB`;
+    console.log('  fixes column      ok');
+
     await sql`CREATE INDEX IF NOT EXISTS vantage_previews_created_idx ON vantage_previews(created_at DESC)`;
     console.log('  indexes           ok');
 
