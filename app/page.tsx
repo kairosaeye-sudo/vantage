@@ -145,8 +145,14 @@ export default function Home() {
       </form>
 
       <div className="mt-8 pt-6 border-t border-[#1c1c21]">
-        <a href="/build" className="btn-ghost">
+        <a href="/build" className="btn-ghost mb-3">
           Build a new field
+        </a>
+        <a href="/watch" className="btn-ghost mb-3">
+          Monitor this weekly — $49/mo
+        </a>
+        <a href="/pricing" className="block text-center text-[13px] text-[#8a8a96] py-2">
+          See plans
         </a>
         <p className="text-[12px] text-[#5a5a66] mt-4 leading-relaxed">
           Enter your industry, location, and the sites you compete with. Vantage scores
