@@ -1,0 +1,267 @@
+{
+  "slug": "electricians-denver-co",
+  "industry": "Electricians",
+  "location": "Denver, CO",
+  "builtAt": "2026-10-03T21:34:10.992Z",
+  "siteCount": 8,
+  "failedCount": 0,
+  "pagespeed": false,
+  "overall": {
+    "avg": 74,
+    "median": 75,
+    "min": 67,
+    "max": 81,
+    "p25": 70,
+    "p75": 80
+  },
+  "categories": {
+    "performance": {
+      "avg": 48,
+      "median": 50,
+      "min": 33,
+      "max": 64,
+      "p25": 39,
+      "p75": 59
+    },
+    "mobile": {
+      "avg": 92,
+      "median": 100,
+      "min": 69,
+      "max": 100,
+      "p25": 82,
+      "p75": 100
+    },
+    "search": {
+      "avg": 83,
+      "median": 81,
+      "min": 74,
+      "max": 100,
+      "p25": 76,
+      "p75": 88
+    },
+    "trust": {
+      "avg": 75,
+      "median": 77,
+      "min": 58,
+      "max": 92,
+      "p25": 72,
+      "p75": 77
+    },
+    "content": {
+      "avg": 89,
+      "median": 100,
+      "min": 59,
+      "max": 100,
+      "p25": 84,
+      "p75": 100
+    },
+    "aiVisibility": {
+      "avg": 73,
+      "median": 78,
+      "min": 46,
+      "max": 100,
+      "p25": 68,
+      "p75": 78
+    },
+    "conversion": {
+      "avg": 79,
+      "median": 90,
+      "min": 41,
+      "max": 100,
+      "p25": 72,
+      "p75": 100
+    }
+  },
+  "distribution": {
+    "elite": 2,
+    "strong": 6,
+    "developing": 0,
+    "critical": 0
+  },
+  "sites": [
+    {
+      "url": "https://piperelectric.com/",
+      "overall": 75,
+      "grade": "strong",
+      "categories": {
+        "performance": 39,
+        "mobile": 100,
+        "search": 88,
+        "trust": 77,
+        "content": 84,
+        "aiVisibility": 68,
+        "conversion": 100
+      },
+      "topFixes": [
+        "Server response time",
+        "FAQ / question content",
+        "Local business schema",
+        "Image alt text",
+        "Content freshness"
+      ],
+      "ttfbMs": 2991,
+      "bytes": 191771
+    },
+    {
+      "url": "https://www.denverhomeelectricians.com/",
+      "overall": 67,
+      "grade": "strong",
+      "categories": {
+        "performance": 64,
+        "mobile": 82,
+        "search": 76,
+        "trust": 72,
+        "content": 59,
+        "aiVisibility": 64,
+        "conversion": 46
+      },
+      "topFixes": [
+        "FAQ / question content",
+        "Contact / quote form",
+        "Blog / resources section",
+        "Click-to-call",
+        "Online booking / scheduling"
+      ],
+      "ttfbMs": 494,
+      "bytes": 445703
+    },
+    {
+      "url": "https://allelectriconline.com/",
+      "overall": 81,
+      "grade": "elite",
+      "categories": {
+        "performance": 59,
+        "mobile": 100,
+        "search": 76,
+        "trust": 77,
+        "content": 100,
+        "aiVisibility": 78,
+        "conversion": 100
+      },
+      "topFixes": [
+        "Entity / organization schema",
+        "Local business schema",
+        "XML sitemap",
+        "Image alt text",
+        "Server response time"
+      ],
+      "ttfbMs": 859,
+      "bytes": 137152
+    },
+    {
+      "url": "https://jumbo-electric.com/",
+      "overall": 70,
+      "grade": "strong",
+      "categories": {
+        "performance": 50,
+        "mobile": 100,
+        "search": 81,
+        "trust": 58,
+        "content": 68,
+        "aiVisibility": 68,
+        "conversion": 80
+      },
+      "topFixes": [
+        "Entity / organization schema",
+        "Contact / quote form",
+        "Local business schema",
+        "Blog / resources section",
+        "Social presence linked"
+      ],
+      "ttfbMs": 1050,
+      "bytes": 349706
+    },
+    {
+      "url": "https://www.mistersparky.com/denver/",
+      "overall": 76,
+      "grade": "strong",
+      "categories": {
+        "performance": 33,
+        "mobile": 100,
+        "search": 81,
+        "trust": 77,
+        "content": 100,
+        "aiVisibility": 100,
+        "conversion": 90
+      },
+      "topFixes": [
+        "Server response time",
+        "Local business schema",
+        "HTML page weight",
+        "Full page load",
+        "Single H1 heading"
+      ],
+      "ttfbMs": 2092,
+      "bytes": 828480
+    },
+    {
+      "url": "https://raelectric.com/",
+      "overall": 69,
+      "grade": "strong",
+      "categories": {
+        "performance": 39,
+        "mobile": 82,
+        "search": 100,
+        "trust": 67,
+        "content": 100,
+        "aiVisibility": 78,
+        "conversion": 41
+      },
+      "topFixes": [
+        "Server response time",
+        "FAQ / question content",
+        "Local business schema",
+        "Click-to-call",
+        "Online booking / scheduling"
+      ],
+      "ttfbMs": 4043,
+      "bytes": 283836
+    },
+    {
+      "url": "https://www.brothersplumbing.com/electrical/",
+      "overall": 80,
+      "grade": "elite",
+      "categories": {
+        "performance": 39,
+        "mobile": 100,
+        "search": 88,
+        "trust": 92,
+        "content": 100,
+        "aiVisibility": 78,
+        "conversion": 100
+      },
+      "topFixes": [
+        "Server response time",
+        "FAQ / question content",
+        "Image alt text",
+        "Full page load",
+        "HTML page weight"
+      ],
+      "ttfbMs": 2586,
+      "bytes": 355760
+    },
+    {
+      "url": "https://www.mrelectriclittleton.com/electrician-denver-co-electrical-repair-services",
+      "overall": 70,
+      "grade": "strong",
+      "categories": {
+        "performance": 59,
+        "mobile": 69,
+        "search": 74,
+        "trust": 77,
+        "content": 100,
+        "aiVisibility": 46,
+        "conversion": 72
+      },
+      "topFixes": [
+        "Responsive layout rules",
+        "FAQ / question content",
+        "Entity / organization schema",
+        "Contact / quote form",
+        "Structured data (schema.org)"
+      ],
+      "ttfbMs": 1090,
+      "bytes": 46190
+    }
+  ]
+}

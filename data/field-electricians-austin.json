@@ -1,0 +1,467 @@
+{
+  "vertical": "corpus-electricians-austin",
+  "builtAt": "2026-10-03T21:24:03.067Z",
+  "siteCount": 17,
+  "failedCount": 1,
+  "overall": {
+    "avg": 75,
+    "min": 41,
+    "max": 83,
+    "median": 76,
+    "p25": 71,
+    "p75": 81
+  },
+  "categories": {
+    "performance": {
+      "avg": 59,
+      "min": 33,
+      "max": 71,
+      "median": 59
+    },
+    "mobile": {
+      "avg": 89,
+      "min": 45,
+      "max": 100,
+      "median": 100
+    },
+    "search": {
+      "avg": 79,
+      "min": 56,
+      "max": 100,
+      "median": 79
+    },
+    "trust": {
+      "avg": 72,
+      "min": 33,
+      "max": 92,
+      "median": 68
+    },
+    "content": {
+      "avg": 83,
+      "min": 5,
+      "max": 100,
+      "median": 80
+    },
+    "aiVisibility": {
+      "avg": 73,
+      "min": 28,
+      "max": 100,
+      "median": 78
+    },
+    "conversion": {
+      "avg": 80,
+      "min": 6,
+      "max": 100,
+      "median": 83
+    }
+  },
+  "distribution": {
+    "elite": 0,
+    "strong": 15,
+    "developing": 1,
+    "critical": 1
+  },
+  "sites": [
+    {
+      "url": "https://www.malcoelectric.com/",
+      "overall": 75,
+      "grade": "strong",
+      "categories": {
+        "performance": 54,
+        "mobile": 100,
+        "search": 90,
+        "trust": 82,
+        "content": 80,
+        "aiVisibility": 66,
+        "conversion": 63
+      },
+      "topFixes": [
+        "AI crawlers allowed",
+        "Contact / quote form",
+        "Blog / resources section",
+        "Online booking / scheduling",
+        "Social presence linked"
+      ],
+      "ttfbMs": 918,
+      "bytes": 329627
+    },
+    {
+      "url": "https://www.dialoneelectrical.com/",
+      "overall": 81,
+      "grade": "elite",
+      "categories": {
+        "performance": 52,
+        "mobile": 100,
+        "search": 78,
+        "trust": 82,
+        "content": 100,
+        "aiVisibility": 100,
+        "conversion": 90
+      },
+      "topFixes": [
+        "Image alt text",
+        "Social presence linked",
+        "HTML page weight",
+        "Server response time",
+        "Single H1 heading"
+      ],
+      "ttfbMs": 865,
+      "bytes": 581917
+    },
+    {
+      "url": "https://astralelectric.net/",
+      "overall": 75,
+      "grade": "strong",
+      "categories": {
+        "performance": 71,
+        "mobile": 69,
+        "search": 76,
+        "trust": 68,
+        "content": 88,
+        "aiVisibility": 68,
+        "conversion": 100
+      },
+      "topFixes": [
+        "Responsive layout rules",
+        "Entity / organization schema",
+        "Local business schema",
+        "Social presence linked",
+        "Internal linking"
+      ],
+      "ttfbMs": 480,
+      "bytes": 131620
+    },
+    {
+      "url": "https://www.simmselectric.com/",
+      "overall": 71,
+      "grade": "strong",
+      "categories": {
+        "performance": 55,
+        "mobile": 100,
+        "search": 65,
+        "trust": 68,
+        "content": 80,
+        "aiVisibility": 46,
+        "conversion": 100
+      },
+      "topFixes": [
+        "Server response time",
+        "FAQ / question content",
+        "Entity / organization schema",
+        "Local business schema",
+        "Blog / resources section"
+      ],
+      "ttfbMs": 1948,
+      "bytes": 68773
+    },
+    {
+      "url": "https://keilelectric.com/austin/",
+      "overall": 81,
+      "grade": "elite",
+      "categories": {
+        "performance": 66,
+        "mobile": 100,
+        "search": 100,
+        "trust": 68,
+        "content": 80,
+        "aiVisibility": 78,
+        "conversion": 83
+      },
+      "topFixes": [
+        "Entity / organization schema",
+        "Local business schema",
+        "Blog / resources section",
+        "Online booking / scheduling",
+        "Social presence linked"
+      ],
+      "ttfbMs": 284,
+      "bytes": 196709
+    },
+    {
+      "url": "https://www.trutecelectric.com/",
+      "overall": 0,
+      "grade": "critical",
+      "error": "HTTP 403",
+      "categories": {},
+      "topFixes": [],
+      "ttfbMs": 477,
+      "bytes": 5486
+    },
+    {
+      "url": "https://www.calldcelectrical.com/",
+      "overall": 69,
+      "grade": "strong",
+      "categories": {
+        "performance": 67,
+        "mobile": 69,
+        "search": 76,
+        "trust": 58,
+        "content": 100,
+        "aiVisibility": 55,
+        "conversion": 63
+      },
+      "topFixes": [
+        "Responsive layout rules",
+        "FAQ / question content",
+        "Entity / organization schema",
+        "Contact / quote form",
+        "Local business schema"
+      ],
+      "ttfbMs": 307,
+      "bytes": 71314
+    },
+    {
+      "url": "https://www.chapmanelectrictx.com/",
+      "overall": 71,
+      "grade": "strong",
+      "categories": {
+        "performance": 33,
+        "mobile": 100,
+        "search": 81,
+        "trust": 82,
+        "content": 100,
+        "aiVisibility": 78,
+        "conversion": 53
+      },
+      "topFixes": [
+        "Server response time",
+        "FAQ / question content",
+        "Contact / quote form",
+        "Online booking / scheduling",
+        "HTML page weight"
+      ],
+      "ttfbMs": 1876,
+      "bytes": 1475646
+    },
+    {
+      "url": "https://perkinelectrical.com/",
+      "overall": 76,
+      "grade": "strong",
+      "categories": {
+        "performance": 50,
+        "mobile": 100,
+        "search": 88,
+        "trust": 60,
+        "content": 100,
+        "aiVisibility": 78,
+        "conversion": 80
+      },
+      "topFixes": [
+        "FAQ / question content",
+        "Contact / quote form",
+        "Local business schema",
+        "Image alt text",
+        "Server response time"
+      ],
+      "ttfbMs": 1549,
+      "bytes": 316669
+    },
+    {
+      "url": "https://beckettelectrical.com/",
+      "overall": 73,
+      "grade": "strong",
+      "categories": {
+        "performance": 59,
+        "mobile": 69,
+        "search": 79,
+        "trust": 67,
+        "content": 100,
+        "aiVisibility": 68,
+        "conversion": 90
+      },
+      "topFixes": [
+        "Responsive layout rules",
+        "FAQ / question content",
+        "Local business schema",
+        "Server response time",
+        "Meta description"
+      ],
+      "ttfbMs": 964,
+      "bytes": 121253
+    },
+    {
+      "url": "https://www.mistersparky.com/austin/",
+      "overall": 81,
+      "grade": "elite",
+      "categories": {
+        "performance": 60,
+        "mobile": 100,
+        "search": 81,
+        "trust": 77,
+        "content": 80,
+        "aiVisibility": 100,
+        "conversion": 90
+      },
+      "topFixes": [
+        "Local business schema",
+        "Blog / resources section",
+        "HTML page weight",
+        "Single H1 heading",
+        "Image alt text"
+      ],
+      "ttfbMs": 600,
+      "bytes": 769466
+    },
+    {
+      "url": "https://noahelectricllc.com/",
+      "overall": 82,
+      "grade": "elite",
+      "categories": {
+        "performance": 71,
+        "mobile": 100,
+        "search": 65,
+        "trust": 92,
+        "content": 80,
+        "aiVisibility": 91,
+        "conversion": 83
+      },
+      "topFixes": [
+        "Blog / resources section",
+        "Online booking / scheduling",
+        "Image alt text",
+        "Page title",
+        "Meta description"
+      ],
+      "ttfbMs": 515,
+      "bytes": 108471
+    },
+    {
+      "url": "https://www.irwinelectricatx.com/",
+      "overall": 41,
+      "grade": "developing",
+      "categories": {
+        "performance": 67,
+        "mobile": 45,
+        "search": 56,
+        "trust": 33,
+        "content": 5,
+        "aiVisibility": 28,
+        "conversion": 6
+      },
+      "topFixes": [
+        "Clear call to action",
+        "Responsive layout rules",
+        "FAQ / question content",
+        "Entity / organization schema",
+        "Contact / quote form"
+      ],
+      "ttfbMs": 369,
+      "bytes": 1194
+    },
+    {
+      "url": "https://austinelectricalservice.com/",
+      "overall": 70,
+      "grade": "strong",
+      "categories": {
+        "performance": 55,
+        "mobile": 69,
+        "search": 76,
+        "trust": 68,
+        "content": 68,
+        "aiVisibility": 78,
+        "conversion": 100
+      },
+      "topFixes": [
+        "Server response time",
+        "Responsive layout rules",
+        "Entity / organization schema",
+        "Local business schema",
+        "Blog / resources section"
+      ],
+      "ttfbMs": 1971,
+      "bytes": 39759
+    },
+    {
+      "url": "https://raptorelectricaustin.com/",
+      "overall": 83,
+      "grade": "elite",
+      "categories": {
+        "performance": 66,
+        "mobile": 100,
+        "search": 79,
+        "trust": 92,
+        "content": 80,
+        "aiVisibility": 78,
+        "conversion": 100
+      },
+      "topFixes": [
+        "FAQ / question content",
+        "Blog / resources section",
+        "Structured data (schema.org)",
+        "Image alt text",
+        "HTML page weight"
+      ],
+      "ttfbMs": 351,
+      "bytes": 245435
+    },
+    {
+      "url": "https://colvinelectric.com/",
+      "overall": 80,
+      "grade": "elite",
+      "categories": {
+        "performance": 67,
+        "mobile": 100,
+        "search": 87,
+        "trust": 67,
+        "content": 100,
+        "aiVisibility": 68,
+        "conversion": 80
+      },
+      "topFixes": [
+        "FAQ / question content",
+        "Contact / quote form",
+        "Local business schema",
+        "Page title",
+        "Contact route"
+      ],
+      "ttfbMs": 194,
+      "bytes": 130140
+    },
+    {
+      "url": "https://www.techtowntony.com/",
+      "overall": 81,
+      "grade": "elite",
+      "categories": {
+        "performance": 54,
+        "mobile": 100,
+        "search": 88,
+        "trust": 73,
+        "content": 100,
+        "aiVisibility": 100,
+        "conversion": 80
+      },
+      "topFixes": [
+        "Contact / quote form",
+        "Image alt text",
+        "Social presence linked",
+        "Server response time",
+        "Physical address shown"
+      ],
+      "ttfbMs": 1752,
+      "bytes": 383109
+    },
+    {
+      "url": "https://texaselectricandlight.com/",
+      "overall": 78,
+      "grade": "strong",
+      "categories": {
+        "performance": 59,
+        "mobile": 100,
+        "search": 78,
+        "trust": 92,
+        "content": 64,
+        "aiVisibility": 68,
+        "conversion": 100
+      },
+      "topFixes": [
+        "FAQ / question content",
+        "Blog / resources section",
+        "Server response time",
+        "Content freshness",
+        "Meta description"
+      ],
+      "ttfbMs": 1402,
+      "bytes": 51725
+    }
+  ]
+}
