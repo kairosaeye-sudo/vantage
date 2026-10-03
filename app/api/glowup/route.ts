@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Enter a website URL.' }, { status: 400 });
     }
 
-    const { record, before, after, files, html } = await runGlowUp(url);
+    const { record, before, after, files, html, applied } = await runGlowUp(url);
 
     // Grab the original HTML so the preview can show the real before state.
     let originalHtml = '';
@@ -39,16 +39,25 @@ export async function POST(req: Request) {
 
     const previewId = randomUUID();
     try {
-      // Changes that live in <head> cannot be outlined in the rendered page, so
-      // the UI lists them separately instead of pretending they are visible.
-      const HEAD_ONLY = new Set(['title', 'meta', 'canonical', 'viewport', 'lang', 'schema', 'localbusiness', 'entity', 'faq', 'sitemap', 'robots', 'crawlers', 'llms', 'alt', 'freshness', 'responsive']);
-      const fixes = record.plan.fixes.map((f) => ({
-        findingId: f.findingId,
-        label: f.label,
-        category: f.category,
-        points: f.points,
-        headOnly: HEAD_ONLY.has(f.findingId) && f.kind !== 'html' ? true : undefined,
-      }));
+      // Ground truth, not the plan. `record.plan.fixes` is everything we COULD
+      // fix; `applied` is what actually changed, and the markers present in the
+      // rebuilt HTML are what the customer will actually see outlined. Anything
+      // else would be the UI claiming a change that does not exist.
+      const appliedIds = new Set(applied.map((f) => f.findingId));
+      const markedIds = new Set(
+        Array.from(html.matchAll(/data-vantage-fix="([^"]+)"/g)).map((m) => m[1])
+      );
+
+      const fixes = record.plan.fixes
+        .filter((f) => appliedIds.has(f.findingId))
+        .map((f) => ({
+          findingId: f.findingId,
+          label: f.label,
+          category: f.category,
+          points: f.points,
+          // Visible = we actually stamped a highlight marker into the page.
+          headOnly: markedIds.has(f.findingId) ? undefined : true,
+        }));
 
       await savePreview(previewId, {
         before: originalHtml,

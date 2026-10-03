@@ -90,6 +90,8 @@ export async function runGlowUp(url: string): Promise<{
   files: Record<string, string>;
   before: SiteScore;
   after: SiteScore;
+  /** The fixes actually applied — the ground truth for what changed. */
+  applied: Array<{ findingId: string; label: string; category: string; points: number }>;
 }> {
   const before = await scoreSite(url, { skipPageSpeed: true });
   if (before.error) {
@@ -113,7 +115,7 @@ export async function runGlowUp(url: string): Promise<{
     createdAt: new Date().toISOString(),
   };
 
-  return { record, html: result.html, files: result.files, before, after };
+  return { record, html: result.html, files: result.files, before, after, applied: result.applied };
 }
 
 export async function saveGlowUp(
