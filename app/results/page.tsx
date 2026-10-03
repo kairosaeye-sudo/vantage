@@ -213,8 +213,20 @@ export default function Results() {
         </>
       )}
 
-      <Link href="/" className="btn-ghost">
+      <Link href="/" className="btn-ghost mb-3">
         Score another site
+      </Link>
+      <button
+        className="btn-primary mb-3"
+        onClick={() => {
+          sessionStorage.setItem('vantage:glowup-url', you.url);
+          window.location.href = '/glowup';
+        }}
+      >
+        Glow up this site
+      </button>
+      <Link href="/watch" className="btn-ghost">
+        Monitor it weekly — $49/mo
       </Link>
     </main>
   );
