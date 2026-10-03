@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { runGlowUp, saveGlowUp, listGlowUps } from '@/lib/glowup-run';
+import { savePreview } from '@/lib/preview-store';
+import { fetchSite } from '@/lib/fetch-site';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,8 +13,10 @@ export const maxDuration = 120;
  *
  * POST { url, watchId? }
  *
- * Returns the verified before/after (re-scored, not estimated), the plan, and
- * what we could not fix with the honest reason for each.
+ * Returns the verified before/after (re-scored, not estimated), the plan, and a
+ * `previewId` for viewing the actual before/after pages. The HTML itself is not
+ * returned here — it is too large for a JSON response and is streamed from
+ * /api/glowup/preview instead.
  */
 export async function POST(req: Request) {
   try {
@@ -21,7 +26,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Enter a website URL.' }, { status: 400 });
     }
 
-    const { record, before, after, files } = await runGlowUp(url);
+    const { record, before, after, files, html } = await runGlowUp(url);
+
+    // Grab the original HTML so the preview can show the real before state.
+    let originalHtml = '';
+    try {
+      const fetched = await fetchSite(before.finalUrl);
+      originalHtml = fetched.html;
+    } catch {
+      originalHtml = '<!doctype html><p>Could not retrieve the original page for preview.</p>';
+    }
+
+    const previewId = randomUUID();
+    try {
+      await savePreview(previewId, {
+        before: originalHtml,
+        after: html,
+        files,
+        url: before.finalUrl,
+        beforeScore: before.overall,
+        afterScore: after.overall,
+      });
+    } catch {
+      // A preview-store failure must not lose the result the user asked for.
+    }
 
     if (body.watchId) {
       try {
@@ -33,6 +61,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      previewId,
       record: {
         id: record.id,
         url: record.url,

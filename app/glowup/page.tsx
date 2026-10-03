@@ -17,6 +17,7 @@ interface CatScore {
 }
 
 interface Result {
+  previewId?: string;
   record: {
     url: string;
     beforeScore: number;
@@ -128,6 +129,19 @@ export default function GlowUp() {
             Measured by re-scoring the rebuilt page through the same engine — not an estimate.
             {record.appliedCount} fixes applied.
           </p>
+
+          {res.previewId && (
+            <a
+              href={`/glowup/preview?id=${res.previewId}`}
+              className="btn-primary mt-4"
+            >
+              View before &amp; after
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </a>
+          )}
         </div>
 
         {/* Category movement */}
