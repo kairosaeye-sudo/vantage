@@ -120,6 +120,7 @@ export async function PUT(req: Request) {
       diff: r.diff,
       overtakes: r.overtakes,
       stayAhead: r.stayAhead,
+      nextRound: r.nextRound,
     });
   } catch (e) {
     return NextResponse.json(

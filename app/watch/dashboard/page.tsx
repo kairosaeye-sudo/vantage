@@ -91,7 +91,10 @@ function DashboardInner() {
         setRunResult(`Failed: ${data.error}`);
       } else {
         setRunResult(
-          `Scored ${data.score}/100 (rank ${data.rank}). ${data.alertsCreated} new alert(s).`
+          `Scored ${data.score}/100 (rank ${data.rank}). ${data.alertsCreated} new alert(s).` +
+            (data.nextRound?.fixable?.length
+              ? ` ${data.nextRound.fixable.length} fixes still available (+${data.nextRound.estimatedGain} pts).`
+              : '')
         );
         // Refresh alerts.
         const r2 = await fetch(`/api/watch?email=${encodeURIComponent(watch.email)}`);

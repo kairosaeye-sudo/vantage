@@ -3,6 +3,7 @@ import { db } from './db';
 import { scoreSite } from './score-site';
 import { buildFieldStats } from './compare';
 import { buildStayAhead, type StayAheadReport } from './stay-ahead';
+import { planGlowUp, type GlowUpPlan } from './glowup';
 import { diffScans, detectOvertakes, rankMovement, type SiteDiff, type Overtake } from './diff';
 import type { SiteScore } from './types';
 
@@ -29,6 +30,12 @@ export interface WatchRunResult {
   rank: number;
   movement: Array<{ url: string; beforeRank: number; afterRank: number; moved: number }>;
   stayAhead: StayAheadReport;
+  /** The next round of glow-up fixes, so monitoring feeds the rebuild loop. */
+  nextRound: {
+    fixable: GlowUpPlan['fixes'];
+    needsWork: GlowUpPlan['needsWork'];
+    estimatedGain: number;
+  };
   alertsCreated: number;
   failed: string[];
 }
@@ -177,6 +184,9 @@ export async function runWatch(watch: WatchRow): Promise<WatchRunResult> {
     location: '',
   });
 
+  // The rebuild loop: what is still fixable right now.
+  const glowPlan = planGlowUp(self);
+
   // Alerts — deduped.
   let alertsCreated = 0;
   const raise = async (
@@ -272,6 +282,11 @@ export async function runWatch(watch: WatchRow): Promise<WatchRunResult> {
       moved: m.moved,
     })),
     stayAhead,
+    nextRound: {
+      fixable: glowPlan.fixes,
+      needsWork: glowPlan.needsWork,
+      estimatedGain: glowPlan.estimatedGain,
+    },
     alertsCreated,
     failed,
   };
