@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-type View = 'before' | 'after' | 'redesign' | 'competitor';
+type View = 'before' | 'after' | 'redesign' | 'competitor' | 'compare';
 
 interface Fix {
   findingId: string;
@@ -43,6 +43,7 @@ const VIEW_LABEL: Record<View, string> = {
   after: 'Fixes',
   redesign: 'Redesign',
   competitor: 'Competitor',
+  compare: 'Compare',
 };
 
 const VIEW_HINT: Record<View, string> = {
@@ -50,6 +51,7 @@ const VIEW_HINT: Record<View, string> = {
   after: 'Same design, technical gaps closed',
   redesign: 'Your real content in a modern design',
   competitor: 'A competitor site from your field',
+  compare: 'Your glow-up next to a competitor',
 };
 
 function PreviewInner() {
@@ -222,6 +224,17 @@ function PreviewInner() {
                   >
                     Competitors
                   </button>
+                  <button
+                    onClick={() => setView('compare')}
+                    className="px-3 py-1.5 text-[12px] font-semibold transition-colors"
+                    style={
+                      view === 'compare'
+                        ? { background: '#7c5cff', color: '#fff' }
+                        : { color: '#8a8a96' }
+                    }
+                  >
+                    Compare
+                  </button>
                 </div>
               )}
               <span className="text-[12px] font-semibold text-[#8a8a96]">BEFORE</span>
@@ -264,17 +277,30 @@ function PreviewInner() {
                 ))}
               </div>
               {competitors.length > 0 && (
-                <button
-                  onClick={() => setView('competitor')}
-                  className="px-3 py-2 text-[13px] font-semibold transition-colors rounded-lg border border-[#26262c]"
-                  style={
-                    view === 'competitor'
-                      ? { background: '#f59e0b', color: '#08080a', borderColor: '#f59e0b' }
-                      : { color: '#8a8a96' }
-                  }
-                >
-                  Competitors
-                </button>
+                <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
+                  <button
+                    onClick={() => setView('competitor')}
+                    className="px-3 py-2 text-[13px] font-semibold transition-colors"
+                    style={
+                      view === 'competitor'
+                        ? { background: '#f59e0b', color: '#08080a' }
+                        : { color: '#8a8a96' }
+                    }
+                  >
+                    Competitors
+                  </button>
+                  <button
+                    onClick={() => setView('compare')}
+                    className="px-3 py-2 text-[13px] font-semibold transition-colors"
+                    style={
+                      view === 'compare'
+                        ? { background: '#7c5cff', color: '#fff' }
+                        : { color: '#8a8a96' }
+                    }
+                  >
+                    Compare
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -402,7 +428,66 @@ function PreviewInner() {
 
         {/* Preview pane */}
         <div className="flex-1 flex flex-col">
-          {wide ? (
+          {view === 'compare' ? (
+            <div className="flex-1 flex flex-col bg-white">
+              {/* Compare: glow-up result vs competitor */}
+              <div className="relative flex-1 flex flex-col">
+                {/* Top: Glow-up result */}
+                <div className="relative bg-white" style={{ height: `${split}%` }}>
+                  <iframe
+                    title="Glow Up Result"
+                    src={src(hasRedesign ? 'redesign' : 'after')}
+                    sandbox="allow-same-origin"
+                    className="w-full h-full border-0 bg-white"
+                    onLoad={() => setLoaded((l) => ({ ...l, compareResult: true }))}
+                  />
+                  <div
+                    className="absolute top-2 left-2 z-10 chip text-[10px] px-2 py-0.5"
+                    style={{ background: 'rgba(0,0,0,.75)', color: '#4ade80' }}
+                  >
+                    Your Glow Up
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div
+                  className="relative h-[3px] bg-[#7c5cff] cursor-ns-resize z-10 shrink-0"
+                  onMouseDown={() => (dragging.current = true)}
+                  onTouchStart={() => (dragging.current = true)}
+                >
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#7c5cff] flex items-center justify-center shadow-lg">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                      <polyline points="6 9 12 4 18 9" />
+                      <polyline points="6 15 12 20 18 15" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Bottom: Competitor */}
+                <div className="relative bg-white flex-1">
+                  <iframe
+                    title="Competitor"
+                    src={src('competitor')}
+                    sandbox="allow-same-origin"
+                    className="w-full h-full border-0 bg-white"
+                    onLoad={() => setLoaded((l) => ({ ...l, compareCompetitor: true }))}
+                  />
+                  <div
+                    className="absolute top-2 right-2 z-10 chip text-[10px] px-2 py-0.5"
+                    style={{ background: 'rgba(0,0,0,.75)', color: '#f59e0b' }}
+                  >
+                    Competitor
+                  </div>
+                </div>
+
+                {!loaded.compareResult && !loaded.compareCompetitor && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#121215] z-30">
+                    <p className="text-[14px] text-[#8a8a96]">Loading comparison…</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : wide ? (
             <div
               ref={frameRef}
               className="relative flex-1 bg-[#121215]"
