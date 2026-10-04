@@ -66,6 +66,50 @@ export interface ScoreOptions {
 }
 
 /**
+ * Score raw HTML without fetching it.
+ *
+ * Needed to measure a page we generated — the redesign, or the rebuilt page —
+ * against the same rubric as a live site. Without this, a generated page can
+ * never be verified and "better" stays an opinion.
+ */
+export async function scoreHtml(
+  html: string,
+  finalUrl: string,
+  opts: ScoreOptions & { ttfbMs?: number; bytes?: number } = {}
+): Promise<SiteScore> {
+  const measuredAt = new Date().toISOString();
+  const ttfbMs = opts.ttfbMs ?? 0;
+  const bytes = opts.bytes ?? Buffer.byteLength(html, 'utf8');
+
+  const signals = await extractSignals(html, finalUrl, ttfbMs, { skipNetwork: opts.skipProbes });
+  const pagespeed = opts.skipPageSpeed ? null : await runPageSpeed(finalUrl);
+
+  const categories = [
+    scorePerformance(pagespeed, signals, ttfbMs, ttfbMs, bytes),
+    scoreMobile(signals),
+    scoreSearch(signals),
+    scoreTrust(signals, false),
+    scoreContent(signals),
+    scoreAiVisibility(signals),
+    scoreConversion(signals),
+  ];
+
+  const overall = combineCategories(categories);
+
+  return {
+    url: finalUrl,
+    finalUrl,
+    overall,
+    grade: gradeFor(overall),
+    categories,
+    topFixes: rankFixes(categories),
+    measuredAt,
+    fetch: { status: 200, ttfbMs, totalMs: ttfbMs, bytes },
+    pagespeed,
+  };
+}
+
+/**
  * Score a single site end to end.
  */
 export async function scoreSite(inputUrl: string, opts: ScoreOptions = {}): Promise<SiteScore> {

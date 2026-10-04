@@ -83,11 +83,11 @@ export async function POST(req: Request) {
 
     if (wantRedesign && originalHtml) {
       try {
-        const r = buildRedesign(originalHtml, before.finalUrl, { templateId: body.template });
+        const r = await buildRedesign(originalHtml, before.finalUrl, { templateId: body.template });
         const c = r.content;
         // A redesign needs real content. If the page is JS-rendered or blocked we
         // get nothing usable — report that rather than render an empty shell.
-        const realFacts = [c.headline, c.phone, c.address, ...c.services.map((s) => s.name)].filter(
+        const realFacts = [c.headline, c.phone, c.address, ...c.services].filter(
           Boolean
         ).length;
         if (realFacts === 0) {
@@ -110,10 +110,10 @@ export async function POST(req: Request) {
               headline: c.headline,
               phone: c.phone,
               address: c.address,
-              services: c.services.map((s) => s.name),
-              testimonialCount: c.testimonials.length,
-              imageCount: c.images.length,
-              hoursCount: c.hours.length,
+              services: c.services,
+              testimonialCount: c.testimonialCount,
+              imageCount: c.imageCount,
+              hoursCount: c.hoursCount,
             },
             stats: r.stats,
           };

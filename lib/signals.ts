@@ -41,7 +41,8 @@ const CTA_WORDS = [
 export async function extractSignals(
   html: string,
   finalUrl: string,
-  ttfbMs: number
+  timeoutMs = 15000,
+  opts: { skipNetwork?: boolean } = {}
 ): Promise<OnPageSignals> {
   const $ = cheerio.load(html);
   const origin = originOf(finalUrl);
@@ -157,9 +158,9 @@ export async function extractSignals(
   const hasMediaQueries = /@media/i.test(html);
 
   // AI visibility infrastructure
-  const hasSitemap = await checkExists(`${origin}/sitemap.xml`);
-  const hasRobots = await checkExists(`${origin}/robots.txt`);
-  const hasLlmsTxt = await checkExists(`${origin}/llms.txt`);
+  const hasSitemap = opts.skipNetwork ? false : await checkExists(`${origin}/sitemap.xml`);
+  const hasRobots = opts.skipNetwork ? false : await checkExists(`${origin}/robots.txt`);
+  const hasLlmsTxt = opts.skipNetwork ? false : await checkExists(`${origin}/llms.txt`);
 
   let robotsAllowsAi = true;
   try {

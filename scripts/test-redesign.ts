@@ -35,7 +35,7 @@ async function main() {
     console.log(`${'═'.repeat(76)}`);
     try {
       const f = await fetchSite(u);
-      const r = buildRedesign(f.html, f.finalUrl);
+      const r = await buildRedesign(f.html, f.finalUrl);
 
       const file = `${OUT}/${slug(u)}.html`;
       writeFileSync(file, r.html, 'utf8');
@@ -53,10 +53,9 @@ async function main() {
       console.log(`    phone        ${r.content.phone ?? '(none found)'}`);
       console.log(`    address      ${r.content.address ?? '(none found)'}`);
       console.log(`    services     ${r.content.services.length}`);
-      console.log(`    testimonials ${r.content.testimonials.length}`);
-      console.log(`    hours        ${r.content.hours.length}`);
-      console.log(`    images       ${r.content.images.length}`);
-      console.log(`    social       ${r.content.socialLinks.map((s) => s.label).join(', ') || '(none)'}`);
+      console.log(`    testimonials ${r.content.testimonialCount}`);
+      console.log(`    hours        ${r.content.hoursCount}`);
+      console.log(`    images       ${r.content.imageCount}`);
 
       console.log(`\n  CHANGES CLAIMED (${r.changes.length}):`);
       for (const c of r.changes) {
