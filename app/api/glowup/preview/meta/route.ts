@@ -22,6 +22,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: 'Preview not found or expired.' }, { status: 404 });
   }
 
+  // Load competitor sites from the first available field
+  let competitors: Array<{ url: string; score: number }> = [];
+  try {
+    const fields = await listFields();
+    if (fields.length > 0) {
+      const sites = await getFieldSites(fields[0].id);
+      competitors = sites
+        .filter((s) => !s.error && s.overall !== null && s.url !== preview.url)
+        .slice(0, 8)
+        .map((s) => ({ url: s.url, score: s.overall ?? 0 }));
+    }
+  } catch {
+    // Competitors are optional
+  }
+
   return NextResponse.json({
     ok: true,
     kind: preview.kind ?? 'glowup',
@@ -34,6 +49,7 @@ export async function GET(req: Request) {
     redesign: preview.redesign ?? null,
     /** True when a third, redesigned view exists. */
     hasRedesign: Boolean(preview.redesigned),
+    competitors,
     createdAt: preview.createdAt,
   });
 }
