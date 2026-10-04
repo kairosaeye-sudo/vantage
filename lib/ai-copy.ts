@@ -60,6 +60,17 @@ export interface EnhancedCopy {
  * facts and cannot hallucinate.
  */
 export function providerFromEnv(): ProviderConfig | null {
+  // Groq is OpenAI-compatible, so it uses the same /chat/completions shape.
+  const groq = process.env.GROQ_API_KEY;
+  if (groq) {
+    return {
+      provider: 'openai',
+      apiKey: groq,
+      model: process.env.GROQ_MODEL ?? 'qwen/qwen3.8-27b',
+      baseUrl: 'https://api.groq.com/openai/v1',
+    };
+  }
+
   const openai = process.env.OPENAI_API_KEY;
   if (openai) {
     return {
