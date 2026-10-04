@@ -10,6 +10,9 @@ import { buildFieldDesignBrief, type FieldSite } from '@/lib/field-design';
 import { getFieldSites } from '@/lib/field-from-db';
 import { detectFieldWithMeta } from '@/lib/field-detect';
 import { createProgress, updateProgress } from '@/lib/progress';
+import { recordFieldGap } from '@/lib/field-gaps';
+import { guessIndustry } from '@/lib/industry-guess';
+import { slugifyLocation } from '@/lib/location-detect';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -120,6 +123,27 @@ export async function POST(req: Request) {
         });
         await sleep(500);
       } else {
+        // No field matched. Record the gap so we learn which field to build
+        // next, and guess the industry so the gap is actionable.
+        const industryGuess = guessIndustry(originalHtml);
+        const suggestedSlug =
+          industryGuess.industry && detectedField.detectedCity
+            ? `${industryGuess.industry.replace(/\s+/g, '-')}-${slugifyLocation(
+                detectedField.detectedCity,
+                detectedField.detectedRegion
+              )}`
+            : null;
+
+        await recordFieldGap({
+          url: before.finalUrl,
+          industry: industryGuess.industry,
+          city: detectedField.detectedCity,
+          region: detectedField.detectedRegion,
+          locationSource: detectedField.locationSource,
+          evidence: detectedField.locationEvidence ?? industryGuess.evidence,
+          suggestedSlug,
+        });
+
         const locNote = detectedField.detectedCity
           ? ` Your site appears to be in ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''} — we don't have a field built for that area yet.`
           : '';
