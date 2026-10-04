@@ -32,6 +32,13 @@ interface RedesignInfo {
     hoursCount: number;
   };
   stats: { beforeBytes: number; afterBytes: number; sections: number };
+  /** Vantage AI: the LLM that drafted the page copy. */
+  vantageAi?: {
+    used: boolean;
+    model: string | null;
+    wordCount: number;
+    groundedOn: string[];
+  };
 }
 
 interface Result {
@@ -279,6 +286,20 @@ export default function GlowUp() {
                 Your real content — services, reviews, photos, phone — re-rendered in a modern
                 layout. Nothing invented.
               </p>
+
+              {res.redesign.vantageAi?.used && (
+                <div
+                  className="flex items-center gap-2 mb-3 px-2.5 py-2 rounded"
+                  style={{ background: '#15121f' }}
+                >
+                  <span className="text-[11px] font-bold tracking-wide" style={{ color: '#b8a6ff' }}>
+                    VANTAGE AI
+                  </span>
+                  <span className="text-[12px] text-[#8a8a96]">
+                    wrote {res.redesign.vantageAi.wordCount} words of copy
+                  </span>
+                </div>
+              )}
 
               <div className="space-y-1.5 mb-3">
                 {[

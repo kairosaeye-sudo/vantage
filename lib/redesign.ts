@@ -29,8 +29,8 @@ import type { FieldDesignBrief } from './field-design';
  *   1. PRESERVE — every signal the original passed is carried into the rebuild:
  *      nav links, blog link, booking link, external links, word count.
  *   2. ENRICH — copy is written from a fact sheet built out of the customer's
- *      own page, with an LLM when a provider is configured and a deterministic
- *      writer when not. Both are grounded; neither invents facts.
+ *      own page, by Vantage AI when a provider is configured and by a
+ *      deterministic writer when not. Both are grounded; neither invents facts.
  *   3. VERIFY — the rebuild is scored through the same engine as a live site, so
  *      "this is better" is a measurement, not an opinion.
  */
@@ -477,8 +477,10 @@ export async function buildRedesign(
   if (copy.aboutParagraphs.length > 0) {
     const wc = copy.aboutParagraphs.join(' ').split(/\s+/).length;
     changes.push({
-      label: copy.aiGenerated ? 'Wrote your page copy from your own facts' : 'Expanded your copy from your own facts',
-      detail: `${copy.aboutParagraphs.length} paragraphs totalling ${wc} words, built only from facts already on your site — your services, area, hours and contact details. Nothing invented.`,
+      label: copy.aiGenerated ? 'Vantage AI wrote your page copy from your own facts' : 'Expanded your copy from your own facts',
+      detail: copy.aiGenerated
+        ? `Vantage AI wrote ${copy.aboutParagraphs.length} paragraphs (${wc} words) using only facts already on your site — your services, area, hours and contact details. Nothing invented.`
+        : `${copy.aboutParagraphs.length} paragraphs totalling ${wc} words, built only from facts already on your site — your services, area, hours and contact details. Nothing invented.`,
       kind: 'content',
     });
   } else {

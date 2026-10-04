@@ -3,7 +3,7 @@ import type { SiteScore, OnPageSignals } from './types';
 import { extractSignals } from './signals';
 
 /**
- * AI content enhancement for the redesign.
+ * Vantage AI — content enhancement for the redesign.
  *
  * The redesign's problem was never the CSS — it was that the rebuild threw away
  * content the original had. Measured: redesign 75 vs plain fixes 82, losing 19
@@ -16,11 +16,11 @@ import { extractSignals } from './signals';
  *   1. `enhanceDeterministic` — carries every content signal the original had
  *      into the rebuild, and writes real copy for the gaps. Always available.
  *
- *   2. `enhanceWithAi` — when an LLM provider is configured, drafts genuinely
- *      better copy (longer, factual, chunkable for AI answers) grounded strictly
- *      in facts extracted from the customer's own site.
+ *   2. `enhanceWithAi` — Vantage AI. When an LLM provider is configured, drafts
+ *      genuinely better copy (longer, factual, chunkable for AI answers)
+ *      grounded strictly in facts extracted from the customer's own site.
  *
- * The AI path never invents facts. It is given an explicit fact sheet and told
+ * Vantage AI never invents facts. It is given an explicit fact sheet and told
  * to use only those facts; anything it cannot ground is omitted.
  */
 
@@ -272,7 +272,7 @@ export function buildFactSheet(html: string, finalUrl: string, name: string, cit
 }
 
 /* ------------------------------------------------------------------ */
-/* AI writer                                                           */
+/* Vantage AI writer                                                  */
 /* ------------------------------------------------------------------ */
 
 const SYSTEM_PROMPT = `You write website copy for small local businesses.

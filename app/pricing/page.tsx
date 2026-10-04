@@ -28,6 +28,7 @@ const PLANS = [
       'We fix what the check found',
       'Re-scored to verify the improvement',
       'Modern redesign from your real content',
+      'Vantage AI writes your page copy from your own facts',
       'Your services, reviews and photos re-set',
       'robots.txt, sitemap, schema, FAQ, contact form',
       'Honest list of what we cannot fix',

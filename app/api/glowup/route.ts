@@ -152,6 +152,13 @@ export async function POST(req: Request) {
         hoursCount: number;
       };
       stats: { beforeBytes: number; afterBytes: number; sections: number };
+      /** Vantage AI: the LLM that drafted the page copy. */
+      vantageAi?: {
+        used: boolean;
+        model: string | null;
+        wordCount: number;
+        groundedOn: string[];
+      };
     } | null = null;
 
     let redesignError: string | null = null;
@@ -192,6 +199,13 @@ export async function POST(req: Request) {
               hoursCount: c.hoursCount,
             },
             stats: r.stats,
+            /** Vantage AI: the LLM that drafted the page copy. */
+            vantageAi: {
+              used: r.copy.aiGenerated,
+              model: r.copy.model ?? null,
+              wordCount: r.copy.wordCount,
+              groundedOn: r.copy.groundedOn,
+            },
           };
         }
       } catch (e) {

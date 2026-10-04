@@ -56,6 +56,14 @@ at 34 while the local leader is at 78, and now wants to close the gap. No sales 
 
 **Funnel:** free industry score → Glow Up (one-time build) → Monitoring subscription (recurring).
 
+**Vantage AI** is the LLM layer inside the glow-up. It writes the page copy for the
+redesign, grounded strictly in facts extracted from the customer's own site — their
+services, area, hours and contact details. It is given an explicit fact sheet and told
+to use only those facts; anything it cannot ground is omitted rather than invented.
+Configured via `GROQ_API_KEY` / `GROQ_MODEL` (default `qwen/qwen3.8-27b`). When no
+provider is set, a deterministic writer produces the copy instead — the glow-up still
+works, it just has less to say.
+
 ## Configuration
 
 Any industry, any location, sites you choose.
