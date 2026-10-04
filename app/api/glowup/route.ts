@@ -376,6 +376,18 @@ export async function POST(req: Request) {
       redesignError,
       /** A redesign is a design judgement and must be seen before it ships. */
       redesignRequiresReview: redesign !== null,
+      /**
+       * How the before/after scores were measured.
+       *
+       * The glow-up scores both sides with PageSpeed disabled so the comparison
+       * is like-for-like. The free Check does call PageSpeed, so it can report a
+       * different figure for the same site — this field exists so a caller never
+       * has to guess which method produced a number.
+       */
+      scoringMethod: {
+        pageSpeed: false,
+        note: 'Before and after are both measured without PageSpeed Insights so they are comparable. The free Check calls PageSpeed and may report a different figure for the same site.',
+      },
       /** Field auto-detection result. */
       detectedField: detectedField.fieldId ? detectedField : null,
       /** Where the site says it is, even when no field matched. */

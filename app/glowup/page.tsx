@@ -294,6 +294,11 @@ export default function GlowUp() {
             Measured by re-scoring the rebuilt page through the same engine — not an estimate.
             {record.appliedCount} fixes applied.
           </p>
+          <p className="text-[12px] text-[#5a5a66] leading-relaxed mt-2">
+            Both numbers are measured without PageSpeed Insights, so before and after are
+            comparable. Your free Check does call PageSpeed, so it can report a slightly
+            different figure for the same site.
+          </p>
 
           {res.previewId && (
             <a
