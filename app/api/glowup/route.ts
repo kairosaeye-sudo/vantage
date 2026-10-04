@@ -86,7 +86,14 @@ export async function POST(req: Request) {
       fieldIndustry: string | null;
       fieldLocation: string | null;
       score: number;
-    } = { fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: 0 };
+      detectedCity: string | null;
+      detectedRegion: string | null;
+      locationSource: string | null;
+      locationEvidence: string | null;
+    } = {
+      fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: 0,
+      detectedCity: null, detectedRegion: null, locationSource: null, locationEvidence: null,
+    };
 
     const effectiveFieldId = body.fieldId ?? null;
 
@@ -95,10 +102,37 @@ export async function POST(req: Request) {
       await sleep(700);
       detectedField = await detectFieldWithMeta(originalHtml);
       if (detectedField.fieldId) {
-        await updateProgress(progressId, { stage: 'detected', message: `Field detected: ${detectedField.fieldSlug}`, percent: 35, metadata: { fieldSlug: detectedField.fieldSlug, fieldIndustry: detectedField.fieldIndustry, fieldLocation: detectedField.fieldLocation } });
+        const locNote = detectedField.detectedCity
+          ? ` — location read from your site: ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''}`
+          : '';
+        await updateProgress(progressId, {
+          stage: 'detected',
+          message: `Field detected: ${detectedField.fieldSlug}${locNote}`,
+          percent: 35,
+          metadata: {
+            fieldSlug: detectedField.fieldSlug,
+            fieldIndustry: detectedField.fieldIndustry,
+            fieldLocation: detectedField.fieldLocation,
+            detectedCity: detectedField.detectedCity,
+            detectedRegion: detectedField.detectedRegion,
+            locationSource: detectedField.locationSource,
+          },
+        });
         await sleep(500);
       } else {
-        await updateProgress(progressId, { stage: 'no-field', message: 'No matching field found — doing a general glow-up with best practices', percent: 35 });
+        const locNote = detectedField.detectedCity
+          ? ` Your site appears to be in ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''} — we don't have a field built for that area yet.`
+          : '';
+        await updateProgress(progressId, {
+          stage: 'no-field',
+          message: `No matching field found — doing a general glow-up with best practices.${locNote}`,
+          percent: 35,
+          metadata: {
+            detectedCity: detectedField.detectedCity,
+            detectedRegion: detectedField.detectedRegion,
+            locationSource: detectedField.locationSource,
+          },
+        });
         await sleep(600);
       }
     }
@@ -304,9 +338,20 @@ export async function POST(req: Request) {
       redesignRequiresReview: redesign !== null,
       /** Field auto-detection result. */
       detectedField: detectedField.fieldId ? detectedField : null,
+      /** Where the site says it is, even when no field matched. */
+      detectedLocation: detectedField.detectedCity
+        ? {
+            city: detectedField.detectedCity,
+            region: detectedField.detectedRegion,
+            source: detectedField.locationSource,
+            evidence: detectedField.locationEvidence,
+          }
+        : null,
       /** Message when no field was detected — the glow-up uses general best practices. */
       noFieldMessage: !fieldIdToUse
-        ? 'No matching field found — doing a general glow-up with best practices and modern design'
+        ? detectedField.detectedCity
+          ? `No field built for ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''} yet — doing a general glow-up with best practices and modern design.`
+          : 'No matching field found — doing a general glow-up with best practices and modern design'
         : null,
     });
   } catch (e) {

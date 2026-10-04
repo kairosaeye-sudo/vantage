@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 interface Fix {
@@ -63,6 +63,13 @@ interface Result {
   redesign: RedesignInfo | null;
   redesignError: string | null;
   noFieldMessage: string | null;
+  /** Where the site says it is, detected from the page. */
+  detectedLocation?: {
+    city: string;
+    region: string | null;
+    source: string | null;
+    evidence: string | null;
+  } | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -148,17 +155,21 @@ export default function GlowUp() {
   const [error, setError] = useState('');
   const [res, setRes] = useState<Result | null>(null);
   const [progressId, setProgressId] = useState<string | null>(null);
+  /** True when the URL was handed over by the home assessment, so we run it
+   *  immediately and don't ask the user to type or submit it again. */
+  const [fromAssessment, setFromAssessment] = useState(false);
+  const autoStarted = useRef(false);
 
   useEffect(() => {
     const prefill = sessionStorage.getItem('vantage:glowup-url');
     if (prefill) {
       setUrl(prefill);
+      setFromAssessment(true);
       sessionStorage.removeItem('vantage:glowup-url');
     }
   }, []);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function run(targetUrl: string) {
     setError('');
     setLoading(true);
     // Generate the progress id client-side so polling starts immediately,
@@ -173,7 +184,7 @@ export default function GlowUp() {
       const r = await fetch('/api/glowup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, watchId, progressId: pid }),
+        body: JSON.stringify({ url: targetUrl, watchId, progressId: pid }),
       });
       const data = await r.json();
       if (!data.ok) {
@@ -186,6 +197,21 @@ export default function GlowUp() {
       setError('Network error. Try again.');
     }
     setLoading(false);
+  }
+
+  // Arriving from the assessment: the URL is already known, so start the run
+  // without making the user re-enter it or press anything.
+  useEffect(() => {
+    if (fromAssessment && url && !autoStarted.current) {
+      autoStarted.current = true;
+      run(url);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromAssessment, url]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    await run(url);
   }
 
   if (loading) {
@@ -202,6 +228,30 @@ export default function GlowUp() {
 
     return (
       <main className="min-h-screen px-5 pt-10 pb-12 max-w-lg mx-auto">
+        {/* Location read from the site */}
+        {res.detectedLocation && (
+          <div className="card p-4 mb-5" style={{ background: '#101a14', borderColor: '#2a5a3a' }}>
+            <p className="text-[13px] font-semibold mb-1">Location detected</p>
+            <p className="text-[12px] text-[#a0a0ac] leading-relaxed">
+              Your site says you are in{' '}
+              <span className="text-[#4ade80] font-semibold">
+                {res.detectedLocation.city}
+                {res.detectedLocation.region ? `, ${res.detectedLocation.region}` : ''}
+              </span>
+              {res.detectedLocation.source === 'structured-data' &&
+                ' — read from your structured data.'}
+              {res.detectedLocation.source === 'address' &&
+                ' — read from your address.'}
+              {res.detectedLocation.source === 'city-state' &&
+                ' — read from your service area.'}
+              {res.detectedLocation.source === 'repeated-city' &&
+                ' — read from repeated mentions on your page.'}
+              {res.detectedLocation.source === 'city-state' &&
+                ' If that is wrong, add your full address to your site.'}
+            </p>
+          </div>
+        )}
+
         {/* No field detected message */}
         {res.noFieldMessage && (
           <div className="card p-4 mb-5" style={{ background: '#15121f', borderColor: '#7c5cff' }}>
@@ -457,18 +507,42 @@ export default function GlowUp() {
           <label className="label" htmlFor="url">
             Your website
           </label>
-          <input
-            id="url"
-            className="field"
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="yourbusiness.com"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            required
-          />
+          {fromAssessment ? (
+            <>
+              {/* The URL came from the assessment — show it read-only so the
+                  user isn't asked to enter the same site twice. */}
+              <div className="field flex items-center gap-2 text-[#8a8a96]">
+                <span className="truncate">{url}</span>
+              </div>
+              <p className="text-[12px] text-[#5a5a66] mt-2">
+                From your check.{' '}
+                <button
+                  type="button"
+                  className="text-[#7c5cff] font-semibold"
+                  onClick={() => {
+                    setFromAssessment(false);
+                    setRes(null);
+                    setError('');
+                  }}
+                >
+                  Use a different site
+                </button>
+              </p>
+            </>
+          ) : (
+            <input
+              id="url"
+              className="field"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="yourbusiness.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              required
+            />
+          )}
         </div>
 
         {error && (
@@ -477,9 +551,13 @@ export default function GlowUp() {
           </div>
         )}
 
-        <button className="btn-primary" disabled={loading || !url}>
-          {loading ? 'Rebuilding…' : 'Glow up my site'}
-        </button>
+        {/* No submit button when the run already started on arrival — there is
+            nothing for the user to press. If it failed, offer a retry. */}
+        {(!fromAssessment || (error && !loading)) && (
+          <button className="btn-primary" disabled={loading || !url}>
+            {loading ? 'Rebuilding…' : fromAssessment ? 'Try again' : 'Glow up my site'}
+          </button>
+        )}
       </form>
 
       <p className="text-[12px] text-[#5a5a66] mt-5 leading-relaxed">

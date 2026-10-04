@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { listFields, type DbField } from './field-from-db';
+import { detectLocation } from './location-detect';
 
 /**
  * Auto-detect which field a site belongs to.
@@ -95,19 +96,48 @@ export async function detectFieldWithMeta(html: string): Promise<{
   fieldIndustry: string | null;
   fieldLocation: string | null;
   score: number;
+  /** Where the site says it is — detected from the page, not from the field list. */
+  detectedCity: string | null;
+  detectedRegion: string | null;
+  /** What the location detection was based on, for transparency. */
+  locationSource: string | null;
+  locationEvidence: string | null;
 }> {
   const fields = await listFields();
   if (fields.length === 0) {
-    return { fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: 0 };
+    return {
+      fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: 0,
+      detectedCity: null, detectedRegion: null, locationSource: null, locationEvidence: null,
+    };
   }
 
   const text = extractText(html);
+
+  // Detect the business's own location from the page. This is what lets a site
+  // pick the right field when the same industry exists in several cities.
+  const loc = await detectLocation(html);
 
   let bestField: DbField | null = null;
   let bestScore = 0;
 
   for (const field of fields) {
-    const score = scoreField(text, field);
+    let score = scoreField(text, field);
+
+    // The site's own detected location is stronger evidence than a keyword
+    // coincidence. A Manor, TX electrician belongs to the Austin field.
+    if (loc.city) {
+      const fieldLoc = field.location.toLowerCase();
+      if (fieldLoc.includes(loc.city.toLowerCase())) {
+        score += 25;
+      }
+    }
+    if (loc.region) {
+      const parts = field.location.toLowerCase().split(/[,\s]+/);
+      if (parts.includes(loc.region.toLowerCase())) {
+        score += 5;
+      }
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestField = field;
@@ -121,8 +151,18 @@ export async function detectFieldWithMeta(html: string): Promise<{
       fieldIndustry: bestField.industry,
       fieldLocation: bestField.location,
       score: bestScore,
+      detectedCity: loc.city,
+      detectedRegion: loc.region,
+      locationSource: loc.source,
+      locationEvidence: loc.evidence,
     };
   }
 
-  return { fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: bestScore };
+  return {
+    fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: bestScore,
+    detectedCity: loc.city,
+    detectedRegion: loc.region,
+    locationSource: loc.source,
+    locationEvidence: loc.evidence,
+  };
 }
