@@ -25,6 +25,19 @@ export interface NotifyResult {
   reason?: string;
 }
 
+/**
+ * The outcome of the most recent notification attempt.
+ *
+ * With no polling backstop, a silently-failing notification would mean a
+ * glow-up finished and nobody was told. Recording the last result makes that
+ * failure observable instead of invisible.
+ */
+let lastResult: (NotifyResult & { at: string; content: string }) | null = null;
+
+export function lastNotifyResult() {
+  return lastResult;
+}
+
 export function notificationsEnabled(): boolean {
   return Boolean(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_NOTIFY_CHANNEL_ID);
 }
@@ -34,7 +47,9 @@ export async function notifyDiscord(content: string): Promise<NotifyResult> {
   const channelId = process.env.DISCORD_NOTIFY_CHANNEL_ID;
 
   if (!token || !channelId) {
-    return { sent: false, reason: 'notifications not configured' };
+    const reason = 'notifications not configured (DISCORD_BOT_TOKEN / DISCORD_NOTIFY_CHANNEL_ID missing)';
+    lastResult = { sent: false, reason, at: new Date().toISOString(), content };
+    return { sent: false, reason };
   }
 
   // Discord rejects content over 2000 chars outright; trim rather than lose it.
@@ -55,11 +70,16 @@ export async function notifyDiscord(content: string): Promise<NotifyResult> {
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      return { sent: false, reason: `Discord ${res.status}: ${detail.slice(0, 200)}` };
+      const reason = `Discord ${res.status}: ${detail.slice(0, 200)}`;
+      lastResult = { sent: false, reason, at: new Date().toISOString(), content };
+      return { sent: false, reason };
     }
+    lastResult = { sent: true, at: new Date().toISOString(), content };
     return { sent: true };
   } catch (e) {
-    return { sent: false, reason: e instanceof Error ? e.message : 'unknown error' };
+    const reason = e instanceof Error ? e.message : 'unknown error';
+    lastResult = { sent: false, reason, at: new Date().toISOString(), content };
+    return { sent: false, reason };
   }
 }
 
