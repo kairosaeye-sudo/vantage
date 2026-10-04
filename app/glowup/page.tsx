@@ -84,7 +84,7 @@ function ProgressBar({ progressId }: { progressId: string | null }) {
       } catch {
         // ignore
       }
-    }, 500);
+    }, 300);
     return () => clearInterval(poll);
   }, [progressId]);
 

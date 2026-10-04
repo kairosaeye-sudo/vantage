@@ -99,6 +99,7 @@ export async function POST(req: Request) {
         await sleep(500);
       } else {
         await updateProgress(progressId, { stage: 'no-field', message: 'No matching field found — doing a general glow-up with best practices', percent: 35 });
+        await sleep(600);
       }
     }
 
@@ -125,6 +126,7 @@ export async function POST(req: Request) {
         if (sitesWithSignals.length > 0) {
           fieldBrief = buildFieldDesignBrief(sitesWithSignals);
           await updateProgress(progressId, { stage: 'analyzed', message: `Analyzed ${sitesWithSignals.length} competitor sites`, percent: 50, metadata: { competitorCount: sitesWithSignals.length } });
+          await sleep(600);
         }
       } catch {
         // Field brief is optional — proceed without it
