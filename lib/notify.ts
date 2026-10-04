@@ -46,6 +46,9 @@ export async function notifyDiscord(content: string): Promise<NotifyResult> {
       headers: {
         Authorization: `Bot ${token}`,
         'Content-Type': 'application/json',
+        // Discord's edge rejects requests without a recognisable UA (Cloudflare
+        // error 1010) — Node's default fetch UA is blocked.
+        'User-Agent': 'DiscordBot (https://vantage-kappa-orcin.vercel.app, 1.0)',
       },
       body: JSON.stringify({ content: body }),
     });
