@@ -64,7 +64,7 @@ function PreviewInner() {
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [meta, setMeta] = useState<Meta | null>(null);
   const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const dragging = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
 
@@ -171,6 +171,7 @@ function PreviewInner() {
           <button
             onClick={() => setSidebarOpen((s) => !s)}
             className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-[#26262c] text-[#8a8a96] ml-2"
+            aria-label={sidebarOpen ? 'Hide changes sidebar' : 'Show changes sidebar'}
           >
             {sidebarOpen ? 'Hide' : 'Show'} Changes
           </button>
