@@ -32,11 +32,17 @@ async function main() {
       message TEXT NOT NULL,
       percent INTEGER NOT NULL DEFAULT 0,
       metadata JSONB DEFAULT '{}',
+      stage_history JSONB DEFAULT '[]',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  console.log('vantage_progress table created');
+  // Add stage_history column if it doesn't exist (idempotent migration)
+  await sql`
+    ALTER TABLE vantage_progress
+    ADD COLUMN IF NOT EXISTS stage_history JSONB DEFAULT '[]'
+  `;
+  console.log('vantage_progress table ready');
 }
 
 main().catch((e) => {

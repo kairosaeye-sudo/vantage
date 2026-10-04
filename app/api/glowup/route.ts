@@ -11,6 +11,10 @@ import { getFieldSites } from '@/lib/field-from-db';
 import { detectFieldWithMeta } from '@/lib/field-detect';
 import { createProgress, updateProgress } from '@/lib/progress';
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -38,6 +42,7 @@ export async function POST(req: Request) {
       watchId?: string;
       redesign?: boolean;
       template?: string;
+      progressId?: string;
       fieldId?: string;
     };
     const url = (body.url ?? '').trim();
@@ -53,16 +58,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const progressId = randomUUID();
+    const progressId = typeof body.progressId === 'string' && body.progressId ? body.progressId : randomUUID();
     await createProgress(progressId);
     await updateProgress(progressId, { stage: 'scoring', message: 'Scoring the original site…', percent: 5 });
+    await sleep(800);
 
     const { record, before, after, files, html, applied } = await runGlowUp(url);
     await updateProgress(progressId, { stage: 'scored', message: `Original scored: ${before.overall}/100`, percent: 20, metadata: { beforeScore: before.overall } });
+    await sleep(600);
 
     // Fetch the original once — the preview needs it, and so does the redesign.
     let originalHtml = '';
     await updateProgress(progressId, { stage: 'fetching', message: 'Fetching original site…', percent: 25 });
+    await sleep(500);
     try {
       const fetched = await fetchSite(before.finalUrl);
       originalHtml = fetched.html;
@@ -84,9 +92,11 @@ export async function POST(req: Request) {
 
     if (!effectiveFieldId && originalHtml) {
       await updateProgress(progressId, { stage: 'detecting', message: 'Detecting your field…', percent: 30 });
+      await sleep(700);
       detectedField = await detectFieldWithMeta(originalHtml);
       if (detectedField.fieldId) {
         await updateProgress(progressId, { stage: 'detected', message: `Field detected: ${detectedField.fieldSlug}`, percent: 35, metadata: { fieldSlug: detectedField.fieldSlug, fieldIndustry: detectedField.fieldIndustry, fieldLocation: detectedField.fieldLocation } });
+        await sleep(500);
       } else {
         await updateProgress(progressId, { stage: 'no-field', message: 'No matching field found — doing a general glow-up with best practices', percent: 35 });
       }

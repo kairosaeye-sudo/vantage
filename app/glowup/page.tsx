@@ -69,7 +69,7 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 function ProgressBar({ progressId }: { progressId: string | null }) {
-  const [progress, setProgress] = useState<{ stage: string; message: string; percent: number; metadata?: Record<string, unknown> } | null>(null);
+  const [progress, setProgress] = useState<{ stage: string; message: string; percent: number; metadata?: Record<string, unknown>; stage_history?: Array<{ stage: string; message: string; percent: number; at: string }> } | null>(null);
 
   useEffect(() => {
     if (!progressId) return;
@@ -115,6 +115,22 @@ function ProgressBar({ progressId }: { progressId: string | null }) {
           No matching field — using general best practices
         </p>
       )}
+      {(progress?.stage_history?.length ?? 0) > 0 && (
+        <div className="mt-4 pt-3 border-t border-[#26262c] text-left">
+          <p className="text-[11px] uppercase tracking-wider text-[#5a5a66] mb-2">
+            Completed stages
+          </p>
+          <div className="space-y-1.5">
+            {progress!.stage_history!.map((h, i) => (
+              <div key={i} className="flex items-center gap-2 text-[12px]">
+                <span className="text-[#4ade80]">✓</span>
+                <span className="text-[#8a8a96]">{h.message}</span>
+                <span className="text-[#5a5a66] ml-auto">{h.percent}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -138,12 +154,19 @@ export default function GlowUp() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    // Generate the progress id client-side so polling starts immediately,
+    // not after the API responds (by which point the run is already over).
+    const pid =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setProgressId(pid);
     try {
       const watchId = sessionStorage.getItem('vantage:watchId') ?? undefined;
       const r = await fetch('/api/glowup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, watchId }),
+        body: JSON.stringify({ url, watchId, progressId: pid }),
       });
       const data = await r.json();
       if (!data.ok) {
@@ -151,7 +174,6 @@ export default function GlowUp() {
         setLoading(false);
         return;
       }
-      setProgressId(data.progressId ?? null);
       setRes(data);
     } catch {
       setError('Network error. Try again.');

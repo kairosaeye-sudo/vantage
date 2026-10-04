@@ -222,7 +222,7 @@ function PreviewInner() {
                   ))}
                 </div>
               )}
-              {competitors.length > 0 && (
+              {competitors.length > 0 && meta?.fieldDetected && (
                 <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
                   <button
                     onClick={() => setView('competitor')}
@@ -287,7 +287,7 @@ function PreviewInner() {
                   </button>
                 ))}
               </div>
-              {competitors.length > 0 && (
+              {competitors.length > 0 && meta?.fieldDetected && (
                 <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
                   <button
                     onClick={() => setView('competitor')}
@@ -398,7 +398,7 @@ function PreviewInner() {
             )}
 
             {/* Competitors */}
-            {competitors.length > 0 && (
+            {competitors.length > 0 && meta?.fieldDetected && (
               <div className="p-4">
                 <h3 className="text-[12px] font-bold uppercase tracking-wider text-[#5a5a66] mb-3">
                   Competitor Sites ({competitors.length})
