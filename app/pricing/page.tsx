@@ -35,6 +35,23 @@ const PLANS = [
     highlight: false,
   },
   {
+    name: 'Redesign',
+    price: '$1,499',
+    period: 'one time',
+    blurb: 'A modern rebuild of an old site, keeping your real content.',
+    features: [
+      'Everything in Glow Up',
+      'Modern design system applied',
+      'Mobile-first responsive layout',
+      'Your services, reviews and photos re-set',
+      'Contact form, FAQ and schema',
+      'Reviewed by a designer before delivery',
+    ],
+    cta: 'Redesign my site',
+    href: '/redesign',
+    highlight: false,
+  },
+  {
     name: 'Watch',
     price: '$149',
     period: 'per month',

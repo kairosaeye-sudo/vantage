@@ -225,6 +225,15 @@ export default function Results() {
       >
         Glow up this site
       </button>
+      <button
+        className="btn-ghost mb-3"
+        onClick={() => {
+          sessionStorage.setItem('vantage:glowup-url', you.url);
+          window.location.href = '/redesign';
+        }}
+      >
+        Redesign it instead
+      </button>
       <Link href="/watch" className="btn-ghost">
         Monitor it weekly — $49/mo
       </Link>

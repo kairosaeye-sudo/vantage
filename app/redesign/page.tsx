@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 interface Change {
@@ -53,6 +53,12 @@ export default function RedesignPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<Result | null>(null);
+
+  // Arriving from the results page pre-fills the address they already scored.
+  useEffect(() => {
+    const carried = sessionStorage.getItem('vantage:glowup-url');
+    if (carried) setUrl(carried);
+  }, []);
 
   async function run() {
     const target = url.trim();
