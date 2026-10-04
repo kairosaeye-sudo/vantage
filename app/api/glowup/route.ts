@@ -13,6 +13,7 @@ import { createProgress, updateProgress } from '@/lib/progress';
 import { recordFieldGap } from '@/lib/field-gaps';
 import { guessIndustry } from '@/lib/industry-guess';
 import { slugifyLocation } from '@/lib/location-detect';
+import { notifyDiscord, glowUpMessage } from '@/lib/notify';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -328,6 +329,21 @@ export async function POST(req: Request) {
         // Persisting must not break the result the user asked for.
       }
     }
+
+    // Tell Discord the run finished. Fire-and-forget: a notification failure
+    // must never fail a glow-up that already succeeded, so this is not awaited
+    // into the response path's error handling.
+    void notifyDiscord(
+      glowUpMessage({
+        url: record.url,
+        beforeScore: record.beforeScore,
+        afterScore: record.afterScore,
+        appliedCount: record.appliedCount,
+        hasRedesign: redesign !== null,
+        fieldSlug: detectedField.fieldSlug ?? null,
+        previewId,
+      })
+    );
 
     return NextResponse.json({
       ok: true,
