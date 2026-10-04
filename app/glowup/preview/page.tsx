@@ -91,15 +91,18 @@ function PreviewInner() {
   }, [id]);
 
   useEffect(() => {
-    const move = (clientX: number) => {
+    const move = (clientX: number, clientY: number) => {
       const el = frameRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const pct = ((clientX - r.left) / r.width) * 100;
+      // Desktop: horizontal split. Mobile: vertical split.
+      const pct = wide
+        ? ((clientX - r.left) / r.width) * 100
+        : ((clientY - r.top) / r.height) * 100;
       setSplit(Math.min(96, Math.max(4, pct)));
     };
-    const onMove = (e: MouseEvent) => dragging.current && move(e.clientX);
-    const onTouch = (e: TouchEvent) => dragging.current && e.touches[0] && move(e.touches[0].clientX);
+    const onMove = (e: MouseEvent) => dragging.current && move(e.clientX, e.clientY);
+    const onTouch = (e: TouchEvent) => dragging.current && e.touches[0] && move(e.touches[0].clientX, e.touches[0].clientY);
     const stop = () => (dragging.current = false);
     window.addEventListener('mousemove', onMove);
     window.addEventListener('touchmove', onTouch, { passive: true });
@@ -111,7 +114,7 @@ function PreviewInner() {
       window.removeEventListener('mouseup', stop);
       window.removeEventListener('touchend', stop);
     };
-  }, []);
+  }, [wide]);
 
   const src = (v: View) => {
     if (v === 'competitor' && selectedCompetitor) {
@@ -465,14 +468,66 @@ function PreviewInner() {
               )}
             </div>
           ) : (
-            <div className="flex-1 bg-white">
-              <iframe
-                title={VIEW_LABEL[view]}
-                src={src(view)}
-                sandbox="allow-same-origin"
-                className="w-full border-0 bg-white"
-                style={{ height: 'calc(100vh - 116px)' }}
-              />
+            <div className="flex-1 flex flex-col bg-white">
+              {/* Mobile: vertical split with draggable divider */}
+              <div className="relative flex-1 flex flex-col">
+                {/* Top: Before */}
+                <div className="relative bg-white" style={{ height: `${split}%` }}>
+                  <iframe
+                    title="Before"
+                    src={src('before')}
+                    sandbox="allow-same-origin"
+                    className="w-full h-full border-0 bg-white"
+                    onLoad={() => setLoaded((l) => ({ ...l, before: true }))}
+                  />
+                  <div
+                    className="absolute top-2 left-2 z-10 chip text-[10px] px-2 py-0.5"
+                    style={{ background: 'rgba(0,0,0,.75)', color: '#fff' }}
+                  >
+                    Before
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div
+                  className="relative h-[3px] bg-[#7c5cff] cursor-ns-resize z-10 shrink-0"
+                  onMouseDown={() => (dragging.current = true)}
+                  onTouchStart={() => (dragging.current = true)}
+                >
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#7c5cff] flex items-center justify-center shadow-lg">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                      <polyline points="6 9 12 4 18 9" />
+                      <polyline points="6 15 12 20 18 15" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Bottom: Result */}
+                <div className="relative bg-white flex-1">
+                  <iframe
+                    title={VIEW_LABEL[resultView]}
+                    src={src(resultView)}
+                    sandbox="allow-same-origin"
+                    className="w-full h-full border-0 bg-white"
+                    onLoad={() => setLoaded((l) => ({ ...l, [resultView]: true }))}
+                  />
+                  <div
+                    className="absolute top-2 right-2 z-10 chip text-[10px] px-2 py-0.5"
+                    style={{
+                      background: 'rgba(0,0,0,.75)',
+                      color: resultView === 'redesign' ? '#b8a6ff' : resultView === 'competitor' ? '#f59e0b' : '#4ade80',
+                    }}
+                  >
+                    {VIEW_LABEL[resultView]}
+                  </div>
+                </div>
+
+                {!loaded.before && !loaded[resultView] && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#121215] z-30">
+                    <p className="text-[14px] text-[#8a8a96]">Loading both versions…</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
