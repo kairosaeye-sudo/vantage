@@ -55,6 +55,7 @@ interface Result {
   after: { overall: number; grade: string; categories: CatScore[] };
   redesign: RedesignInfo | null;
   redesignError: string | null;
+  noFieldMessage: string | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -67,11 +68,63 @@ const KIND_LABEL: Record<string, string> = {
   motion: 'Motion',
 };
 
+function ProgressBar({ progressId }: { progressId: string | null }) {
+  const [progress, setProgress] = useState<{ stage: string; message: string; percent: number; metadata?: Record<string, unknown> } | null>(null);
+
+  useEffect(() => {
+    if (!progressId) return;
+    const poll = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/progress?id=${encodeURIComponent(progressId)}`);
+        const d = await r.json();
+        if (d.ok) {
+          setProgress(d);
+          if (d.percent >= 100) clearInterval(poll);
+        }
+      } catch {
+        // ignore
+      }
+    }, 500);
+    return () => clearInterval(poll);
+  }, [progressId]);
+
+  return (
+    <div className="card p-6">
+      <p className="text-[15px] font-semibold mb-2">Glowing up your site…</p>
+      <div className="w-full h-2 bg-[#1a1a1e] rounded-full overflow-hidden mb-3">
+        <div
+          className="h-full bg-[#7c5cff] rounded-full transition-all duration-300"
+          style={{ width: `${progress?.percent ?? 0}%` }}
+        />
+      </div>
+      <p className="text-[13px] text-[#8a8a96] leading-relaxed">
+        {progress?.message ?? 'Starting…'}
+      </p>
+      {progress?.metadata?.fieldSlug != null ? (
+        <p className="text-[12px] text-[#b8a6ff] mt-2">
+          Field: {String(progress.metadata.fieldSlug)}
+        </p>
+      ) : null}
+      {progress?.metadata?.competitorCount != null ? (
+        <p className="text-[12px] text-[#b8a6ff] mt-1">
+          Analyzed {String(progress.metadata.competitorCount)} competitor sites
+        </p>
+      ) : null}
+      {progress?.metadata?.fieldSlug == null && progress?.stage === 'no-field' && (
+        <p className="text-[12px] text-[#b8a6ff] mt-2">
+          No matching field — using general best practices
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function GlowUp() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [res, setRes] = useState<Result | null>(null);
+  const [progressId, setProgressId] = useState<string | null>(null);
 
   useEffect(() => {
     const prefill = sessionStorage.getItem('vantage:glowup-url');
@@ -98,6 +151,7 @@ export default function GlowUp() {
         setLoading(false);
         return;
       }
+      setProgressId(data.progressId ?? null);
       setRes(data);
     } catch {
       setError('Network error. Try again.');
@@ -108,13 +162,7 @@ export default function GlowUp() {
   if (loading) {
     return (
       <main className="min-h-screen px-5 pt-20 max-w-lg mx-auto text-center">
-        <div className="card p-6">
-          <p className="text-[15px] font-semibold mb-2">Glowing up your site…</p>
-          <p className="text-[13px] text-[#8a8a96] leading-relaxed">
-            Scoring the original, applying fixes, re-scoring to verify the gain, then rebuilding
-            the design from your real content. About 45 seconds.
-          </p>
-        </div>
+        <ProgressBar progressId={progressId} />
       </main>
     );
   }
@@ -125,6 +173,14 @@ export default function GlowUp() {
 
     return (
       <main className="min-h-screen px-5 pt-10 pb-12 max-w-lg mx-auto">
+        {/* No field detected message */}
+        {res.noFieldMessage && (
+          <div className="card p-4 mb-5" style={{ background: '#15121f', borderColor: '#7c5cff' }}>
+            <p className="text-[13px] font-semibold mb-1">General glow-up</p>
+            <p className="text-[12px] text-[#a0a0ac] leading-relaxed">{res.noFieldMessage}</p>
+          </div>
+        )}
+
         {/* Verified result */}
         <div className="card p-6 mb-5">
           <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mb-3">

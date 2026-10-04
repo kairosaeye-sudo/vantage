@@ -49,6 +49,8 @@ export async function GET(req: Request) {
     redesign: preview.redesign ?? null,
     /** True when a third, redesigned view exists. */
     hasRedesign: Boolean(preview.redesigned),
+    /** True when a field was auto-detected for this glow-up. */
+    fieldDetected: preview.fieldDetected ?? false,
     competitors,
     createdAt: preview.createdAt,
   });

@@ -51,6 +51,8 @@ export interface PreviewStore {
   afterScore: number;
   fixes: PreviewFix[];
   redesign: RedesignMeta | null;
+  /** True when a field was auto-detected for this glow-up. */
+  fieldDetected: boolean;
   createdAt: string;
 }
 
@@ -68,17 +70,20 @@ export async function savePreview(
     afterScore: number;
     fixes: PreviewFix[];
     redesign?: RedesignMeta | null;
+    /** True when a field was auto-detected for this glow-up. */
+    fieldDetected?: boolean;
   },
   watchId?: string
 ): Promise<void> {
   const sql = db();
   await sql`
-    INSERT INTO vantage_previews (id, kind, before_html, after_html, redesigned_html, files, url, before_score, after_score, fixes, redesign)
+    INSERT INTO vantage_previews (id, kind, before_html, after_html, redesigned_html, files, url, before_score, after_score, fixes, redesign, field_detected)
     VALUES (
       ${id}, ${data.kind ?? 'glowup'}, ${data.before}, ${data.after}, ${data.redesigned ?? null},
       ${sql.json(data.files as never)},
       ${data.url}, ${data.beforeScore}, ${data.afterScore}, ${sql.json(data.fixes as never)},
-      ${data.redesign ? sql.json(data.redesign as never) : null}
+      ${data.redesign ? sql.json(data.redesign as never) : null},
+      ${data.fieldDetected ?? false}
     )
     ON CONFLICT (id) DO NOTHING
   `;
@@ -97,7 +102,7 @@ export async function getPreview(id: string): Promise<PreviewStore | null> {
     SELECT id, COALESCE(kind, 'glowup') AS kind, before_html AS before, after_html AS after,
            redesigned_html AS redesigned, files, url,
            before_score AS "beforeScore", after_score AS "afterScore",
-           fixes, redesign, created_at AS "createdAt"
+           fixes, redesign, COALESCE(field_detected, false) AS "fieldDetected", created_at AS "createdAt"
     FROM vantage_previews
     WHERE id = ${id}
     LIMIT 1

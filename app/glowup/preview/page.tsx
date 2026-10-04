@@ -36,6 +36,7 @@ interface Meta {
     needsFromClient: string[];
   } | null;
   competitors: Competitor[];
+  fieldDetected: boolean;
 }
 
 const VIEW_LABEL: Record<View, string> = {
@@ -167,6 +168,16 @@ function PreviewInner() {
               <span className="text-[#5a5a66] mx-1.5">→</span>
               <span className="text-[#4ade80] font-semibold">{meta.afterScore}</span>
               <span className="text-[#4ade80] text-[12px] ml-1.5">+{meta.verifiedGain}</span>
+            </span>
+          )}
+
+          {meta && !meta.fieldDetected && (
+            <span
+              className="text-[11px] font-semibold px-2 py-1 rounded shrink-0"
+              style={{ background: '#15121f', color: '#b8a6ff', border: '1px solid #7c5cff' }}
+              title="No matching field found — this glow-up uses general best practices and modern design"
+            >
+              General glow-up
             </span>
           )}
 

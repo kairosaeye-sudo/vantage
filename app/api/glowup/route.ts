@@ -9,6 +9,7 @@ import { extractDesignSignals } from '@/lib/design-signals';
 import { buildFieldDesignBrief, type FieldSite } from '@/lib/field-design';
 import { getFieldSites } from '@/lib/field-from-db';
 import { detectFieldWithMeta } from '@/lib/field-detect';
+import { createProgress, updateProgress } from '@/lib/progress';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,10 +53,16 @@ export async function POST(req: Request) {
       );
     }
 
+    const progressId = randomUUID();
+    await createProgress(progressId);
+    await updateProgress(progressId, { stage: 'scoring', message: 'Scoring the original site…', percent: 5 });
+
     const { record, before, after, files, html, applied } = await runGlowUp(url);
+    await updateProgress(progressId, { stage: 'scored', message: `Original scored: ${before.overall}/100`, percent: 20, metadata: { beforeScore: before.overall } });
 
     // Fetch the original once — the preview needs it, and so does the redesign.
     let originalHtml = '';
+    await updateProgress(progressId, { stage: 'fetching', message: 'Fetching original site…', percent: 25 });
     try {
       const fetched = await fetchSite(before.finalUrl);
       originalHtml = fetched.html;
@@ -76,7 +83,13 @@ export async function POST(req: Request) {
     const effectiveFieldId = body.fieldId ?? null;
 
     if (!effectiveFieldId && originalHtml) {
+      await updateProgress(progressId, { stage: 'detecting', message: 'Detecting your field…', percent: 30 });
       detectedField = await detectFieldWithMeta(originalHtml);
+      if (detectedField.fieldId) {
+        await updateProgress(progressId, { stage: 'detected', message: `Field detected: ${detectedField.fieldSlug}`, percent: 35, metadata: { fieldSlug: detectedField.fieldSlug, fieldIndustry: detectedField.fieldIndustry, fieldLocation: detectedField.fieldLocation } });
+      } else {
+        await updateProgress(progressId, { stage: 'no-field', message: 'No matching field found — doing a general glow-up with best practices', percent: 35 });
+      }
     }
 
     const fieldIdToUse = effectiveFieldId ?? detectedField.fieldId;
@@ -86,6 +99,7 @@ export async function POST(req: Request) {
     let fieldBrief = null;
     if (fieldIdToUse) {
       try {
+        await updateProgress(progressId, { stage: 'analyzing', message: 'Analyzing competitor sites…', percent: 40 });
         const fieldSites = await getFieldSites(fieldIdToUse);
         const sitesWithSignals: FieldSite[] = [];
         for (const row of fieldSites) {
@@ -100,6 +114,7 @@ export async function POST(req: Request) {
         }
         if (sitesWithSignals.length > 0) {
           fieldBrief = buildFieldDesignBrief(sitesWithSignals);
+          await updateProgress(progressId, { stage: 'analyzed', message: `Analyzed ${sitesWithSignals.length} competitor sites`, percent: 50, metadata: { competitorCount: sitesWithSignals.length } });
         }
       } catch {
         // Field brief is optional — proceed without it
@@ -131,6 +146,7 @@ export async function POST(req: Request) {
 
     if (wantRedesign && originalHtml) {
       try {
+        await updateProgress(progressId, { stage: 'redesigning', message: 'Rebuilding design from your content…', percent: 60 });
         const r = await buildRedesign(originalHtml, before.finalUrl, { templateId: body.template, fieldBrief });
         const c = r.content;
         // A redesign needs real content. If the page is JS-rendered or blocked we
@@ -214,6 +230,7 @@ export async function POST(req: Request) {
               needsFromClient: redesign.needsFromClient,
             }
           : null,
+        fieldDetected: Boolean(fieldIdToUse),
       });
     } catch {
       // A preview-store failure must not lose the result the user asked for.
@@ -230,6 +247,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       previewId,
+      progressId,
       record: {
         id: record.id,
         url: record.url,
@@ -259,6 +277,10 @@ export async function POST(req: Request) {
       redesignRequiresReview: redesign !== null,
       /** Field auto-detection result. */
       detectedField: detectedField.fieldId ? detectedField : null,
+      /** Message when no field was detected — the glow-up uses general best practices. */
+      noFieldMessage: !fieldIdToUse
+        ? 'No matching field found — doing a general glow-up with best practices and modern design'
+        : null,
     });
   } catch (e) {
     return NextResponse.json(
