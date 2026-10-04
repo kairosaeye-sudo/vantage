@@ -50,6 +50,10 @@ async function main() {
     // Existing installs predate the `fixes` column.
     await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS fixes JSONB`;
     console.log('  fixes column      ok');
+    // Redesign previews share the table; `kind` separates them from glow-ups.
+    await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'glowup'`;
+    await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS redesign JSONB`;
+    console.log('  redesign columns  ok');
 
     await sql`CREATE INDEX IF NOT EXISTS vantage_previews_created_idx ON vantage_previews(created_at DESC)`;
     console.log('  indexes           ok');

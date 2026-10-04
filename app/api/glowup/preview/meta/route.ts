@@ -23,12 +23,14 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
+    kind: preview.kind ?? 'glowup',
     url: preview.url,
     beforeScore: preview.beforeScore,
     afterScore: preview.afterScore,
     verifiedGain: preview.afterScore - preview.beforeScore,
     files: Object.keys(preview.files ?? {}),
     fixes: preview.fixes ?? [],
+    redesign: preview.redesign ?? null,
     createdAt: preview.createdAt,
   });
 }

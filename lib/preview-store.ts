@@ -20,8 +20,26 @@ export interface PreviewFix {
   headOnly?: boolean;
 }
 
+/** A change made by the redesign engine. */
+export interface RedesignChange {
+  label: string;
+  detail: string;
+  kind: string;
+}
+
+/** Metadata for a redesign preview. */
+export interface RedesignMeta {
+  templateId: string;
+  templateLabel: string;
+  changes: RedesignChange[];
+  omitted: Array<{ section: string; reason: string }>;
+  needsFromClient: string[];
+}
+
 export interface PreviewStore {
   id: string;
+  /** 'glowup' = technical fixes. 'redesign' = visual rebuild. */
+  kind: 'glowup' | 'redesign';
   before: string;
   after: string;
   files: Record<string, string>;
@@ -29,12 +47,14 @@ export interface PreviewStore {
   beforeScore: number;
   afterScore: number;
   fixes: PreviewFix[];
+  redesign: RedesignMeta | null;
   createdAt: string;
 }
 
 export async function savePreview(
   id: string,
   data: {
+    kind?: 'glowup' | 'redesign';
     before: string;
     after: string;
     files: Record<string, string>;
@@ -42,15 +62,17 @@ export async function savePreview(
     beforeScore: number;
     afterScore: number;
     fixes: PreviewFix[];
+    redesign?: RedesignMeta | null;
   },
   watchId?: string
 ): Promise<void> {
   const sql = db();
   await sql`
-    INSERT INTO vantage_previews (id, before_html, after_html, files, url, before_score, after_score, fixes)
+    INSERT INTO vantage_previews (id, kind, before_html, after_html, files, url, before_score, after_score, fixes, redesign)
     VALUES (
-      ${id}, ${data.before}, ${data.after}, ${sql.json(data.files as never)},
-      ${data.url}, ${data.beforeScore}, ${data.afterScore}, ${sql.json(data.fixes as never)}
+      ${id}, ${data.kind ?? 'glowup'}, ${data.before}, ${data.after}, ${sql.json(data.files as never)},
+      ${data.url}, ${data.beforeScore}, ${data.afterScore}, ${sql.json(data.fixes as never)},
+      ${data.redesign ? sql.json(data.redesign as never) : null}
     )
     ON CONFLICT (id) DO NOTHING
   `;
@@ -66,9 +88,9 @@ export async function savePreview(
 export async function getPreview(id: string): Promise<PreviewStore | null> {
   const sql = db();
   const rows = await sql<PreviewStore[]>`
-    SELECT id, before_html AS before, after_html AS after, files, url,
+    SELECT id, COALESCE(kind, 'glowup') AS kind, before_html AS before, after_html AS after, files, url,
            before_score AS "beforeScore", after_score AS "afterScore",
-           fixes, created_at AS "createdAt"
+           fixes, redesign, created_at AS "createdAt"
     FROM vantage_previews
     WHERE id = ${id}
     LIMIT 1

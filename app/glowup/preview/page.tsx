@@ -15,12 +15,20 @@ interface Fix {
 }
 
 interface Meta {
+  kind: 'glowup' | 'redesign';
   url: string;
   beforeScore: number;
   afterScore: number;
   verifiedGain: number;
   files: string[];
   fixes: Fix[];
+  redesign: {
+    templateId: string;
+    templateLabel: string;
+    changes: Array<{ label: string; detail: string; kind: string }>;
+    omitted: Array<{ section: string; reason: string }>;
+    needsFromClient: string[];
+  } | null;
 }
 
 function PreviewInner() {
@@ -101,7 +109,7 @@ function PreviewInner() {
             ← Back
           </Link>
 
-          {meta && (
+          {meta && meta.kind !== 'redesign' && (
             <span className="text-[13px] tabular-nums shrink-0">
               <span className="text-[#8a8a96]">{meta.beforeScore}</span>
               <span className="text-[#5a5a66] mx-1.5">→</span>
@@ -109,38 +117,50 @@ function PreviewInner() {
               <span className="text-[#4ade80] text-[12px] ml-1.5">+{meta.verifiedGain}</span>
             </span>
           )}
+          {meta?.kind === 'redesign' && (
+            <span
+              className="text-[11px] font-semibold px-2 py-1 rounded shrink-0"
+              style={{ background: '#15121f', color: '#b8a6ff' }}
+            >
+              {meta.redesign?.templateLabel ?? 'Redesign'}
+            </span>
+          )}
 
           {wide ? (
             <div className="flex items-center gap-3 ml-auto">
-              <button
-                onClick={() => setAnnotate((a) => !a)}
-                className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-colors"
-                style={
-                  annotate
-                    ? { borderColor: '#7c5cff', color: '#b8a6ff', background: '#15121f' }
-                    : { borderColor: '#26262c', color: '#8a8a96' }
-                }
-              >
-                {annotate ? 'Highlights on' : 'Highlights off'}
-              </button>
+              {meta?.kind !== 'redesign' && (
+                <button
+                  onClick={() => setAnnotate((a) => !a)}
+                  className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-colors"
+                  style={
+                    annotate
+                      ? { borderColor: '#7c5cff', color: '#b8a6ff', background: '#15121f' }
+                      : { borderColor: '#26262c', color: '#8a8a96' }
+                  }
+                >
+                  {annotate ? 'Highlights on' : 'Highlights off'}
+                </button>
+              )}
               <span className="text-[12px] font-semibold text-[#8a8a96]">BEFORE</span>
               <span className="text-[12px] text-[#5a5a66]">drag</span>
               <span className="text-[12px] font-semibold text-[#4ade80]">AFTER</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 ml-auto">
-              <button
-                onClick={() => setAnnotate((a) => !a)}
-                title={annotate ? 'Highlights on' : 'Highlights off'}
-                className="text-[13px] font-semibold px-3 py-2 rounded-lg border"
-                style={
-                  annotate
-                    ? { borderColor: '#7c5cff', color: '#b8a6ff', background: '#15121f' }
-                    : { borderColor: '#26262c', color: '#8a8a96' }
-                }
-              >
-                {annotate ? 'Highlighted' : 'Clean'}
-              </button>
+              {meta?.kind !== 'redesign' && (
+                <button
+                  onClick={() => setAnnotate((a) => !a)}
+                  title={annotate ? 'Highlights on' : 'Highlights off'}
+                  className="text-[13px] font-semibold px-3 py-2 rounded-lg border"
+                  style={
+                    annotate
+                      ? { borderColor: '#7c5cff', color: '#b8a6ff', background: '#15121f' }
+                      : { borderColor: '#26262c', color: '#8a8a96' }
+                  }
+                >
+                  {annotate ? 'Highlighted' : 'Clean'}
+                </button>
+              )}
               <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
                 {(['before', 'after'] as const).map((s) => (
                   <button
@@ -249,6 +269,65 @@ function PreviewInner() {
             className="w-full border-0 bg-white"
             style={{ height: 'calc(100vh - 57px)' }}
           />
+        </div>
+      )}
+
+      {/* Redesign: what changed, and what we could not use. */}
+      {meta?.kind === 'redesign' && meta.redesign && (
+        <div className="border-t border-[#26262c] bg-[#0d0d10]">
+          <button
+            onClick={() => setShowList((s) => !s)}
+            className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
+          >
+            <span className="text-[13px] font-semibold text-[#c9c9d2]">
+              What changed in this redesign ({meta.redesign.changes.length})
+            </span>
+            <span className="text-[#5a5a66] text-[13px]">{showList ? 'Hide' : 'Show'}</span>
+          </button>
+          {showList && (
+            <div className="px-4 pb-5 max-w-[1600px] mx-auto">
+              <ul className="space-y-3 mb-5">
+                {meta.redesign.changes.map((c) => (
+                  <li key={c.label} className="card p-3">
+                    <p className="text-[13px] font-semibold">{c.label}</p>
+                    <p className="text-[12px] text-[#8a8a96] leading-relaxed mt-1">{c.detail}</p>
+                  </li>
+                ))}
+              </ul>
+
+              {meta.redesign.omitted.length > 0 && (
+                <>
+                  <p className="text-[13px] font-semibold mb-1">Sections left out</p>
+                  <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
+                    Only content that actually exists on the original site is rendered. Nothing
+                    was invented.
+                  </p>
+                  <ul className="space-y-2 mb-5">
+                    {meta.redesign.omitted.map((o) => (
+                      <li key={o.section} className="text-[13px]">
+                        <span className="font-medium">{o.section}</span>
+                        <span className="text-[#8a8a96]"> — {o.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {meta.redesign.needsFromClient.length > 0 && (
+                <>
+                  <p className="text-[13px] font-semibold mb-2">Still needed from the client</p>
+                  <ul className="space-y-2">
+                    {meta.redesign.needsFromClient.map((n) => (
+                      <li key={n} className="text-[13px] flex gap-2">
+                        <span className="text-[#7c5cff]">•</span>
+                        <span>{n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
