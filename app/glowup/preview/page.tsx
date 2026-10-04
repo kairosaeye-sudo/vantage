@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-type View = 'before' | 'after' | 'redesign';
+type View = 'before' | 'after' | 'redesign' | 'competitor';
 
 interface Fix {
   findingId: string;
@@ -12,6 +12,11 @@ interface Fix {
   category: string;
   points: number;
   headOnly?: boolean;
+}
+
+interface Competitor {
+  url: string;
+  score: number;
 }
 
 interface Meta {
@@ -30,19 +35,21 @@ interface Meta {
     omitted: Array<{ section: string; reason: string }>;
     needsFromClient: string[];
   } | null;
+  competitors: Competitor[];
 }
 
 const VIEW_LABEL: Record<View, string> = {
   before: 'Before',
   after: 'Fixes',
   redesign: 'Redesign',
+  competitor: 'Competitor',
 };
 
-/** What each view actually is — labels alone are ambiguous. */
 const VIEW_HINT: Record<View, string> = {
   before: 'The site as it is today',
   after: 'Same design, technical gaps closed',
   redesign: 'Your real content in a modern design',
+  competitor: 'A competitor site from your field',
 };
 
 function PreviewInner() {
@@ -56,11 +63,11 @@ function PreviewInner() {
   const [showCode, setShowCode] = useState(false);
   const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [meta, setMeta] = useState<Meta | null>(null);
+  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const dragging = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
 
-  // Desktop gets the split view; phones get a toggle (a split is unusable on a
-  // narrow screen).
   useEffect(() => {
     const check = () => setWide(window.innerWidth >= 900);
     check();
@@ -68,7 +75,6 @@ function PreviewInner() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // What changed — drives the legend and the change lists.
   useEffect(() => {
     if (!id) return;
     fetch(`/api/glowup/preview/meta?id=${encodeURIComponent(id)}`)
@@ -76,9 +82,10 @@ function PreviewInner() {
       .then((d) => {
         if (!d.ok) return;
         setMeta(d);
-        // Open on the redesign when there is one — it is the most persuasive
-        // view. Otherwise show the fixed page.
         setView(d.hasRedesign ? 'redesign' : 'after');
+        if (d.competitors?.length > 0) {
+          setSelectedCompetitor(d.competitors[0].url);
+        }
       })
       .catch(() => {});
   }, [id]);
@@ -106,9 +113,21 @@ function PreviewInner() {
     };
   }, []);
 
-  const src = (v: View) =>
-    `/api/glowup/preview?id=${encodeURIComponent(id)}&side=${v}` +
-    (v === 'after' && !annotate ? '&annotate=0' : '');
+  const src = (v: View) => {
+    if (v === 'competitor' && selectedCompetitor) {
+      return `/api/proxy?url=${encodeURIComponent(selectedCompetitor)}`;
+    }
+    return `/api/glowup/preview?id=${encodeURIComponent(id)}&side=${v}` +
+      (v === 'after' && !annotate ? '&annotate=0' : '');
+  };
+
+  const scrollToFix = useCallback((findingId: string) => {
+    // Switch to the fixes view and scroll to the highlighted element
+    setView('after');
+    setAnnotate(true);
+    // The iframe will load with highlights; we can't directly scroll inside it
+    // due to cross-origin restrictions, but the highlight outline makes it visible
+  }, []);
 
   if (!id) {
     return (
@@ -123,10 +142,10 @@ function PreviewInner() {
 
   const hasRedesign = meta?.hasRedesign ?? false;
   const views: View[] = hasRedesign ? ['before', 'after', 'redesign'] : ['before', 'after'];
-  // The split compares the original against whichever result is selected.
   const resultView: View = view === 'before' ? (hasRedesign ? 'redesign' : 'after') : view;
   const visibleFixes = (meta?.fixes ?? []).filter((f) => !f.headOnly);
   const headFixes = (meta?.fixes ?? []).filter((f) => f.headOnly);
+  const competitors = meta?.competitors ?? [];
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -145,6 +164,13 @@ function PreviewInner() {
               <span className="text-[#4ade80] text-[12px] ml-1.5">+{meta.verifiedGain}</span>
             </span>
           )}
+
+          <button
+            onClick={() => setSidebarOpen((s) => !s)}
+            className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-[#26262c] text-[#8a8a96] ml-2"
+          >
+            {sidebarOpen ? 'Hide' : 'Show'} Changes
+          </button>
 
           {wide ? (
             <div className="flex items-center gap-3 ml-auto">
@@ -177,6 +203,21 @@ function PreviewInner() {
                       {VIEW_LABEL[v]}
                     </button>
                   ))}
+                </div>
+              )}
+              {competitors.length > 0 && (
+                <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
+                  <button
+                    onClick={() => setView('competitor')}
+                    className="px-3 py-1.5 text-[12px] font-semibold transition-colors"
+                    style={
+                      view === 'competitor'
+                        ? { background: '#f59e0b', color: '#08080a' }
+                        : { color: '#8a8a96' }
+                    }
+                  >
+                    Competitors
+                  </button>
                 </div>
               )}
               <span className="text-[12px] font-semibold text-[#8a8a96]">BEFORE</span>
@@ -218,6 +259,19 @@ function PreviewInner() {
                   </button>
                 ))}
               </div>
+              {competitors.length > 0 && (
+                <button
+                  onClick={() => setView('competitor')}
+                  className="px-3 py-2 text-[13px] font-semibold transition-colors rounded-lg border border-[#26262c]"
+                  style={
+                    view === 'competitor'
+                      ? { background: '#f59e0b', color: '#08080a', borderColor: '#f59e0b' }
+                      : { color: '#8a8a96' }
+                  }
+                >
+                  Competitors
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -226,199 +280,267 @@ function PreviewInner() {
         <div className="border-t border-[#1c1c21] px-4 py-1.5">
           <p className="text-[11px] text-[#5a5a66] max-w-[1600px] mx-auto">{VIEW_HINT[view]}</p>
         </div>
-
-        {/* Legend: what the outlines mean */}
-        {annotate && view === 'after' && visibleFixes.length > 0 && (
-          <div className="border-t border-[#1c1c21] px-4 py-2 overflow-x-auto">
-            <div className="flex gap-2 max-w-[1600px] mx-auto items-center">
-              <span className="text-[11px] text-[#5a5a66] shrink-0">Highlighted changes:</span>
-              {visibleFixes.map((f) => (
-                <span
-                  key={f.findingId}
-                  className="text-[11px] font-semibold shrink-0 px-2 py-1 rounded"
-                  style={{ background: '#1a1428', color: '#b8a6ff' }}
-                >
-                  {f.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Frames */}
-      {wide ? (
-        <div
-          ref={frameRef}
-          className="relative flex-1 bg-[#121215]"
-          style={{ minHeight: 'calc(100vh - 84px)' }}
-        >
-          {/* Result underneath, BEFORE clipped to the left of the divider */}
-          <iframe
-            title={VIEW_LABEL[resultView]}
-            src={src(resultView)}
-            sandbox="allow-same-origin"
-            className="absolute inset-0 w-full h-full border-0 bg-white"
-            onLoad={() => setLoaded((l) => ({ ...l, [resultView]: true }))}
-          />
-          <div className="absolute inset-0 overflow-hidden bg-white" style={{ width: `${split}%` }}>
-            <iframe
-              title="Before"
-              src={src('before')}
-              sandbox="allow-same-origin"
-              className="border-0 bg-white"
-              style={{
-                width: frameRef.current
-                  ? `${frameRef.current.getBoundingClientRect().width}px`
-                  : '100vw',
-                height: '100%',
-              }}
-              onLoad={() => setLoaded((l) => ({ ...l, before: true }))}
-            />
-          </div>
-
-          {/* Divider */}
-          <div
-            className="absolute top-0 bottom-0 w-[3px] bg-[#7c5cff] cursor-ew-resize z-10"
-            style={{ left: `calc(${split}% - 1.5px)` }}
-            onMouseDown={() => (dragging.current = true)}
-            onTouchStart={() => (dragging.current = true)}
-          >
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#7c5cff] flex items-center justify-center shadow-lg">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
-                <polyline points="9 6 4 12 9 18" />
-                <polyline points="15 6 20 12 15 18" />
-              </svg>
-            </div>
-          </div>
-
-          <div
-            className="absolute bottom-3 left-3 z-10 chip"
-            style={{ background: 'rgba(0,0,0,.75)', color: '#fff' }}
-          >
-            Before
-          </div>
-          <div
-            className="absolute bottom-3 right-3 z-10 chip"
-            style={{
-              background: 'rgba(0,0,0,.75)',
-              color: resultView === 'redesign' ? '#b8a6ff' : '#4ade80',
-            }}
-          >
-            {VIEW_LABEL[resultView]}
-          </div>
-
-          {!loaded.before && !loaded[resultView] && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#121215] z-30">
-              <p className="text-[14px] text-[#8a8a96]">Loading both versions…</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex-1 bg-white">
-          <iframe
-            title={VIEW_LABEL[view]}
-            src={src(view)}
-            sandbox="allow-same-origin"
-            className="w-full border-0 bg-white"
-            style={{ height: 'calc(100vh - 116px)' }}
-          />
-        </div>
-      )}
-
-      {/* Design rebuild: what changed, and what we could not use. */}
-      {meta?.redesign && (
-        <div className="border-t border-[#26262c] bg-[#0d0d10]">
-          <button
-            onClick={() => setShowDesign((s) => !s)}
-            className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
-          >
-            <span className="text-[13px] font-semibold text-[#c9c9d2]">
-              Design rebuild — what changed ({meta.redesign.changes.length})
-            </span>
-            <span className="text-[#5a5a66] text-[13px]">{showDesign ? 'Hide' : 'Show'}</span>
-          </button>
-          {showDesign && (
-            <div className="px-4 pb-5 max-w-[1600px] mx-auto">
-              <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
-                Template: <span className="text-[#b8a6ff]">{meta.redesign.templateLabel}</span>. The
-                technical fixes are score-verified; a redesign is a design judgement, so review it
-                before sending it to a client.
-              </p>
-              <ul className="space-y-3 mb-5">
-                {meta.redesign.changes.map((c) => (
-                  <li key={c.label} className="card p-3">
-                    <p className="text-[13px] font-semibold">{c.label}</p>
-                    <p className="text-[12px] text-[#8a8a96] leading-relaxed mt-1">{c.detail}</p>
-                  </li>
-                ))}
-              </ul>
-
-              {meta.redesign.omitted.length > 0 && (
-                <>
-                  <p className="text-[13px] font-semibold mb-1">Sections left out</p>
-                  <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
-                    Only content that actually exists on the original site is rendered. Nothing was
-                    invented.
-                  </p>
-                  <ul className="space-y-2 mb-5">
-                    {meta.redesign.omitted.map((o) => (
-                      <li key={o.section} className="text-[13px]">
-                        <span className="font-medium">{o.section}</span>
-                        <span className="text-[#8a8a96]"> — {o.reason}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              {meta.redesign.needsFromClient.length > 0 && (
-                <>
-                  <p className="text-[13px] font-semibold mb-2">Still needed from the client</p>
-                  <ul className="space-y-2">
-                    {meta.redesign.needsFromClient.map((n) => (
-                      <li key={n} className="text-[13px] flex gap-2">
-                        <span className="text-[#7c5cff]">•</span>
-                        <span>{n}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Technical fixes: real, but not visible on the rendered page. */}
-      {headFixes.length > 0 && (
-        <div className="border-t border-[#26262c] bg-[#0d0d10]">
-          <button
-            onClick={() => setShowCode((s) => !s)}
-            className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
-          >
-            <span className="text-[13px] font-semibold text-[#c9c9d2]">
-              Also changed in the page code ({headFixes.length})
-            </span>
-            <span className="text-[#5a5a66] text-[13px]">{showCode ? 'Hide' : 'Show'}</span>
-          </button>
-          {showCode && (
-            <div className="px-4 pb-4 max-w-[1600px] mx-auto space-y-2">
-              {headFixes.map((f) => (
-                <div key={f.findingId} className="card p-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-medium">{f.label}</p>
-                    <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mt-0.5">
-                      {f.category} · not visible on the page
-                    </p>
-                  </div>
-                  <span className="text-[12px] text-[#7c5cff] font-semibold shrink-0">+{f.points}</span>
+      {/* Main content: sidebar + preview */}
+      <div className="flex flex-1">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <div className="w-80 shrink-0 border-r border-[#26262c] bg-[#0d0d10] overflow-y-auto" style={{ maxHeight: 'calc(100vh - 84px)' }}>
+            {/* Technical fixes */}
+            {visibleFixes.length > 0 && (
+              <div className="p-4 border-b border-[#1c1c21]">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-[#5a5a66] mb-3">
+                  Technical Fixes ({visibleFixes.length})
+                </h3>
+                <div className="space-y-2">
+                  {visibleFixes.map((f) => (
+                    <button
+                      key={f.findingId}
+                      onClick={() => scrollToFix(f.findingId)}
+                      className="w-full text-left p-3 rounded-lg border border-[#26262c] bg-[#121214] hover:border-[#7c5cff] transition-colors group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-[#c9c9d2] group-hover:text-[#b8a6ff]">
+                          {f.label}
+                        </span>
+                        <span className="text-[11px] text-[#7c5cff] font-semibold">+{f.points}</span>
+                      </div>
+                      <p className="text-[11px] text-[#5a5a66] mt-1">{f.category}</p>
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Design changes */}
+            {meta?.redesign && meta.redesign.changes.length > 0 && (
+              <div className="p-4 border-b border-[#1c1c21]">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-[#5a5a66] mb-3">
+                  Design Changes ({meta.redesign.changes.length})
+                </h3>
+                <div className="space-y-2">
+                  {meta.redesign.changes.map((c) => (
+                    <div
+                      key={c.label}
+                      className="p-3 rounded-lg border border-[#26262c] bg-[#121214]"
+                    >
+                      <p className="text-[13px] font-semibold text-[#c9c9d2]">{c.label}</p>
+                      <p className="text-[11px] text-[#8a8a96] mt-1 leading-relaxed">{c.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Head-only fixes */}
+            {headFixes.length > 0 && (
+              <div className="p-4 border-b border-[#1c1c21]">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-[#5a5a66] mb-3">
+                  Code-Only Fixes ({headFixes.length})
+                </h3>
+                <div className="space-y-2">
+                  {headFixes.map((f) => (
+                    <div
+                      key={f.findingId}
+                      className="p-3 rounded-lg border border-[#26262c] bg-[#121214]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-[#c9c9d2]">{f.label}</span>
+                        <span className="text-[11px] text-[#7c5cff] font-semibold">+{f.points}</span>
+                      </div>
+                      <p className="text-[11px] text-[#5a5a66] mt-1">{f.category} · not visible</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Competitors */}
+            {competitors.length > 0 && (
+              <div className="p-4">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-[#5a5a66] mb-3">
+                  Competitor Sites ({competitors.length})
+                </h3>
+                <div className="space-y-2">
+                  {competitors.map((c) => (
+                    <button
+                      key={c.url}
+                      onClick={() => {
+                        setSelectedCompetitor(c.url);
+                        setView('competitor');
+                      }}
+                      className="w-full text-left p-3 rounded-lg border transition-colors"
+                      style={{
+                        borderColor: selectedCompetitor === c.url && view === 'competitor'
+                          ? '#f59e0b'
+                          : '#26262c',
+                        background: selectedCompetitor === c.url && view === 'competitor'
+                          ? '#1a1408'
+                          : '#121214',
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-[#c9c9d2] truncate">
+                          {c.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                        </span>
+                        <span className="text-[11px] text-[#f59e0b] font-semibold shrink-0 ml-2">
+                          {c.score}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Preview pane */}
+        <div className="flex-1 flex flex-col">
+          {wide ? (
+            <div
+              ref={frameRef}
+              className="relative flex-1 bg-[#121215]"
+              style={{ minHeight: 'calc(100vh - 84px)' }}
+            >
+              <iframe
+                title={VIEW_LABEL[resultView]}
+                src={src(resultView)}
+                sandbox="allow-same-origin"
+                className="absolute inset-0 w-full h-full border-0 bg-white"
+                onLoad={() => setLoaded((l) => ({ ...l, [resultView]: true }))}
+              />
+              <div className="absolute inset-0 overflow-hidden bg-white" style={{ width: `${split}%` }}>
+                <iframe
+                  title="Before"
+                  src={src('before')}
+                  sandbox="allow-same-origin"
+                  className="border-0 bg-white"
+                  style={{
+                    width: frameRef.current
+                      ? `${frameRef.current.getBoundingClientRect().width}px`
+                      : '100vw',
+                    height: '100%',
+                  }}
+                  onLoad={() => setLoaded((l) => ({ ...l, before: true }))}
+                />
+              </div>
+
+              {/* Divider */}
+              <div
+                className="absolute top-0 bottom-0 w-[3px] bg-[#7c5cff] cursor-ew-resize z-10"
+                style={{ left: `calc(${split}% - 1.5px)` }}
+                onMouseDown={() => (dragging.current = true)}
+                onTouchStart={() => (dragging.current = true)}
+              >
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#7c5cff] flex items-center justify-center shadow-lg">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                    <polyline points="9 6 4 12 9 18" />
+                    <polyline points="15 6 20 12 15 18" />
+                  </svg>
+                </div>
+              </div>
+
+              <div
+                className="absolute bottom-3 left-3 z-10 chip"
+                style={{ background: 'rgba(0,0,0,.75)', color: '#fff' }}
+              >
+                Before
+              </div>
+              <div
+                className="absolute bottom-3 right-3 z-10 chip"
+                style={{
+                  background: 'rgba(0,0,0,.75)',
+                  color: resultView === 'redesign' ? '#b8a6ff' : resultView === 'competitor' ? '#f59e0b' : '#4ade80',
+                }}
+              >
+                {VIEW_LABEL[resultView]}
+              </div>
+
+              {!loaded.before && !loaded[resultView] && (
+                <div className="absolute inset-0 flex items-center justify-center bg-[#121215] z-30">
+                  <p className="text-[14px] text-[#8a8a96]">Loading both versions…</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 bg-white">
+              <iframe
+                title={VIEW_LABEL[view]}
+                src={src(view)}
+                sandbox="allow-same-origin"
+                className="w-full border-0 bg-white"
+                style={{ height: 'calc(100vh - 116px)' }}
+              />
+            </div>
+          )}
+
+          {/* Design rebuild details */}
+          {meta?.redesign && (
+            <div className="border-t border-[#26262c] bg-[#0d0d10]">
+              <button
+                onClick={() => setShowDesign((s) => !s)}
+                className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
+              >
+                <span className="text-[13px] font-semibold text-[#c9c9d2]">
+                  Design rebuild — what changed ({meta.redesign.changes.length})
+                </span>
+                <span className="text-[#5a5a66] text-[13px]">{showDesign ? 'Hide' : 'Show'}</span>
+              </button>
+              {showDesign && (
+                <div className="px-4 pb-5 max-w-[1600px] mx-auto">
+                  <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
+                    Template: <span className="text-[#b8a6ff]">{meta.redesign.templateLabel}</span>. The
+                    technical fixes are score-verified; a redesign is a design judgement, so review it
+                    before sending it to a client.
+                  </p>
+                  <ul className="space-y-3 mb-5">
+                    {meta.redesign.changes.map((c) => (
+                      <li key={c.label} className="card p-3">
+                        <p className="text-[13px] font-semibold">{c.label}</p>
+                        <p className="text-[12px] text-[#8a8a96] leading-relaxed mt-1">{c.detail}</p>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {meta.redesign.omitted.length > 0 && (
+                    <>
+                      <p className="text-[13px] font-semibold mb-1">Sections left out</p>
+                      <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
+                        Only content that actually exists on the original site is rendered. Nothing was
+                        invented.
+                      </p>
+                      <ul className="space-y-2 mb-5">
+                        {meta.redesign.omitted.map((o) => (
+                          <li key={o.section} className="text-[13px]">
+                            <span className="font-medium">{o.section}</span>
+                            <span className="text-[#8a8a96]"> — {o.reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {meta.redesign.needsFromClient.length > 0 && (
+                    <>
+                      <p className="text-[13px] font-semibold mb-2">Still needed from the client</p>
+                      <ul className="space-y-2">
+                        {meta.redesign.needsFromClient.map((n) => (
+                          <li key={n} className="text-[13px] flex gap-2">
+                            <span className="text-[#7c5cff]">•</span>
+                            <span>{n}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </main>
   );
 }
