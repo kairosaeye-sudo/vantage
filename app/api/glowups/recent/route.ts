@@ -49,12 +49,22 @@ export async function GET(req: Request) {
 
   if (format === 'text') {
     if (rows.length === 0) return new NextResponse('No new glow-ups.', { status: 200 });
-    const lines = rows.map(
-      (r) =>
-        `${r.url}: ${r.beforeScore} → ${r.afterScore} (+${r.afterScore - r.beforeScore})${
-          r.hasRedesign ? ' [redesign]' : ''
-        }${r.fieldDetected ? '' : ' [no field]'}`
-    );
+
+    // A repeat run is a real event, so keep every row — but label repeats so a
+    // digest showing the same site twice doesn't read as a duplication bug.
+    const totals = new Map<string, number>();
+    for (const r of rows) totals.set(r.url, (totals.get(r.url) ?? 0) + 1);
+    const seen = new Map<string, number>();
+
+    const lines = rows.map((r) => {
+      const total = totals.get(r.url) ?? 1;
+      const n = (seen.get(r.url) ?? 0) + 1;
+      seen.set(r.url, n);
+      const runLabel = total > 1 ? ` (run ${n} of ${total})` : '';
+      return `${r.url}: ${r.beforeScore} → ${r.afterScore} (+${r.afterScore - r.beforeScore})${runLabel}${
+        r.hasRedesign ? ' [redesign]' : ''
+      }${r.fieldDetected ? '' : ' [no field]'}\n  https://vantage-kappa-orcin.vercel.app/glowup/preview?id=${r.id}`;
+    });
     return new NextResponse(`New glow-ups (${rows.length}):\n${lines.join('\n')}`, { status: 200 });
   }
 
