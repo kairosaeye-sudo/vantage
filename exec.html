@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vantage — Website Intelligence Platform</title>
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #121214;
+    --surface2: #1a1a1e;
+    --border: #2a2a30;
+    --text: #e8e8ec;
+    --muted: #8a8a96;
+    --accent: #7c5cff;
+    --accent2: #5c9fff;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 60px;
+    text-align: center;
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124,92,255,0.15), transparent);
+  }
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  .hero p {
+    font-size: clamp(16px, 2.5vw, 20px);
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0 auto 32px;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
+    margin-top: 40px;
+  }
+  .hero-stat {
+    text-align: center;
+  }
+  .hero-stat .num {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .hero-stat .label {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Sections */
+  section { padding: 60px 0; }
+  .section-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .section-sub {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 40px;
+  }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 40px 0;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 32px;
+    text-align: center;
+    min-width: 180px;
+    position: relative;
+  }
+  .flow-step .step-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .flow-step .step-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .flow-step .step-price {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .flow-arrow {
+    font-size: 24px;
+    color: var(--accent);
+    margin: 0 16px;
+    flex-shrink: 0;
+  }
+
+  /* Score gauge */
+  .gauge-container {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    flex-wrap: wrap;
+    margin: 40px 0;
+  }
+  .gauge {
+    text-align: center;
+  }
+  .gauge svg {
+    width: 160px;
+    height: 160px;
+  }
+  .gauge .gauge-label {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .gauge .gauge-score {
+    font-size: 28px;
+    font-weight: 800;
+  }
+
+  /* Category bars */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .cat-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+  }
+  .cat-bar .cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .cat-bar .cat-name {
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .cat-bar .cat-weight {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .cat-bar .bar-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .cat-bar .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .cat-bar .bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Before/After */
+  .ba-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 32px 0;
+  }
+  @media (max-width: 700px) {
+    .ba-grid { grid-template-columns: 1fr; }
+  }
+  .ba-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .ba-card .ba-header {
+    padding: 16px 20px;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .ba-card.before .ba-header { background: rgba(248,113,113,0.1); color: var(--red); }
+  .ba-card.after .ba-header { background: rgba(52,211,153,0.1); color: var(--green); }
+  .ba-card .ba-body {
+    padding: 20px;
+  }
+  .ba-card .ba-score {
+    font-size: 48px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .ba-card.before .ba-score { color: var(--red); }
+  .ba-card.after .ba-score { color: var(--green); }
+  .ba-card .ba-delta {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .ba-card .ba-fixes {
+    list-style: none;
+  }
+  .ba-card .ba-fixes li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ba-card .ba-fixes li:last-child { border-bottom: none; }
+  .ba-card .ba-fixes li::before {
+    content: '✓';
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* Metrics */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+  }
+  .metric-card .metric-num {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .metric-card .metric-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Market */
+  .market-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin: 32px 0;
+  }
+  @media (max-width: 700px) {
+    .market-grid { grid-template-columns: 1fr; }
+  }
+  .market-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    text-align: center;
+  }
+  .market-card .market-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+  .market-card .market-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent2);
+    margin-bottom: 4px;
+  }
+  .market-card .market-label {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* CTA */
+  .cta {
+    text-align: center;
+    padding: 80px 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(124,92,255,0.1), transparent);
+  }
+  .cta h2 {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+  .cta p {
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .cta .btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 16px;
+    transition: transform 0.15s ease;
+  }
+  .cta .btn:hover { transform: translateY(-2px); }
+
+  /* Footer */
+  footer {
+    padding: 40px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Rubric table */
+  .rubric-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 14px;
+  }
+  .rubric-table th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--surface2);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .rubric-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rubric-table tr:last-child td { border-bottom: none; }
+  .rubric-table .weight-bar {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .rubric-table .weight-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="wrap">
+    <h1>Vantage</h1>
+    <p>Website intelligence for small business. Score your site against your competitors, fix what's holding you back, and stay ahead.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="num">7</div>
+        <div class="label">Scoring Categories</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">40+</div>
+        <div class="label">Signals Measured</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">+19</div>
+        <div class="label">Avg Score Gain</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">3</div>
+        <div class="label">Product Stages</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product Flow -->
+<section>
+  <div class="wrap">
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-sub">Three stages. Each one builds on the last.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">Stage 1</div>
+        <div class="step-name">Check</div>
+        <div class="step-price">Free</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-num">Stage 2</div>
+        <div class="step-name">Glow Up</div>
+        <div class="step-price">$499 one-time</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-num">Stage 3</div>
+        <div class="step-name">Monitor</div>
+        <div class="step-price">$149/mo</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Scoring Rubric -->
+<section style="background: var(--surface);">
+  <div class="wrap">
+    <h2 class="section-title">The Scoring Rubric</h2>
+    <p class="section-sub">Seven weighted categories, 40+ signals. Calibrated against real small business sites.</p>
+    <div class="cat-grid">
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">Performance</span>
+          <span class="cat-weight">25%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--accent)"></div></div>
+        <div class="bar-labels"><span>PageSpeed, LCP, CLS, TTFB</span><span>25%</span></div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">Mobile</span>
+          <span class="cat-weight">15%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--accent2)"></div></div>
+        <div class="bar-labels"><span>Viewport, tap targets, media queries</span><span>15%</span></div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">Search Foundations</span>
+          <span class="cat-weight">15%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--accent2)"></div></div>
+        <div class="bar-labels"><span>Title, meta, schema, sitemap</span><span>15%</span></div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">Trust & Credibility</span>
+          <span class="cat-weight">15%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%;background:var(--accent2)"></div></div>
+        <div class="bar-labels"><span>Contact info, reviews, address</span><span>15%</span></div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">Content</span>
+          <span class="cat-weight">10%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--amber)"></div></div>
+        <div class="bar-labels"><span>Word count, depth, freshness</span><span>10%</span></div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">AI Visibility</span>
+          <span class="cat-weight">10%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--amber)"></div></div>
+        <div class="bar-labels"><span>llms.txt, robots, structured data</span><span>10%</span></div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-header">
+          <span class="cat-name">Conversion</span>
+          <span class="cat-weight">10%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--amber)"></div></div>
+        <div class="bar-labels"><span>CTA, forms, booking, phone</span><span>10%</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Before/After Results -->
+<section>
+  <div class="wrap">
+    <h2 class="section-title">Real Results</h2>
+    <p class="section-sub">Verified by re-scoring through the same engine. Not estimates.</p>
+    <div class="ba-grid">
+      <div class="ba-card before">
+        <div class="ba-header">Before — Beckett Electrical</div>
+        <div class="ba-body">
+          <div class="ba-score">76</div>
+          <div class="ba-delta">Grade: Strong</div>
+          <ul class="ba-fixes">
+            <li>20 font tags (no web fonts)</li>
+            <li>0 media queries</li>
+            <li>0 clamp() calls</li>
+            <li>No structured data</li>
+            <li>No FAQ schema</li>
+            <li>No contact form</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ba-card after">
+        <div class="ba-header">After — Glow Up</div>
+        <div class="ba-body">
+          <div class="ba-score">89</div>
+          <div class="ba-delta">+13 points · Grade: Elite</div>
+          <ul class="ba-fixes">
+            <li>6 technical fixes applied</li>
+            <li>Modern redesign (Trades template)</li>
+            <li>24 media queries</li>
+            <li>38 clamp() calls</li>
+            <li>LocalBusiness + FAQ schema</li>
+            <li>Contact form + booking preserved</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Key Metrics -->
+<section style="background: var(--surface);">
+  <div class="wrap">
+    <h2 class="section-title">Platform Metrics</h2>
+    <p class="section-sub">What we've built and verified so far.</p>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-num">18</div>
+        <div class="metric-label">Sites Scored</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num">3</div>
+        <div class="metric-label">Industry Fields</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num">+19</div>
+        <div class="metric-label">Avg Score Gain</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num">97KB→21KB</div>
+        <div class="metric-label">Page Size Reduction</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num">100%</div>
+        <div class="metric-label">Score-Verified</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num">0</div>
+        <div class="metric-label">Fabricated Content</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Market Opportunity -->
+<section>
+  <div class="wrap">
+    <h2 class="section-title">Market Opportunity</h2>
+    <p class="section-sub">Small business websites are underperforming. Vantage measures and fixes it.</p>
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-icon">📊</div>
+        <div class="market-num">46%</div>
+        <div class="market-label">of small business sites score Critical</div>
+      </div>
+      <div class="market-card">
+        <div class="market-icon">🔍</div>
+        <div class="market-num">14/100</div>
+        <div class="market-label">avg PageSpeed for home services</div>
+      </div>
+      <div class="market-card">
+        <div class="market-icon">📱</div>
+        <div class="market-num">60%</div>
+        <div class="market-label">of small business traffic is mobile</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta">
+  <div class="wrap">
+    <h2>See where your site stands</h2>
+    <p>Free check. 30 seconds. No signup.</p>
+    <a href="https://vantage-kappa-orcin.vercel.app" class="btn">Try Vantage Free</a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    Vantage by Kairos — Website intelligence for small business.<br>
+    <span style="font-size:12px;">Deployed at vantage-kappa-orcin.vercel.app</span>
+  </div>
+</footer>
+
+</body>
+</html>
