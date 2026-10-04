@@ -243,6 +243,7 @@ export async function POST(req: Request) {
             }
           : null,
         fieldDetected: Boolean(fieldIdToUse),
+        fieldId: fieldIdToUse ?? null,
       });
     } catch {
       // A preview-store failure must not lose the result the user asked for.

@@ -53,6 +53,8 @@ export interface PreviewStore {
   redesign: RedesignMeta | null;
   /** True when a field was auto-detected for this glow-up. */
   fieldDetected: boolean;
+  /** The field the site was matched against, so the preview compares against the right peer set. */
+  fieldId: string | null;
   createdAt: string;
 }
 
@@ -72,18 +74,21 @@ export async function savePreview(
     redesign?: RedesignMeta | null;
     /** True when a field was auto-detected for this glow-up. */
     fieldDetected?: boolean;
+    /** The field used, so the preview compares against the right peer set. */
+    fieldId?: string | null;
   },
   watchId?: string
 ): Promise<void> {
   const sql = db();
   await sql`
-    INSERT INTO vantage_previews (id, kind, before_html, after_html, redesigned_html, files, url, before_score, after_score, fixes, redesign, field_detected)
+    INSERT INTO vantage_previews (id, kind, before_html, after_html, redesigned_html, files, url, before_score, after_score, fixes, redesign, field_detected, field_id)
     VALUES (
       ${id}, ${data.kind ?? 'glowup'}, ${data.before}, ${data.after}, ${data.redesigned ?? null},
       ${sql.json(data.files as never)},
       ${data.url}, ${data.beforeScore}, ${data.afterScore}, ${sql.json(data.fixes as never)},
       ${data.redesign ? sql.json(data.redesign as never) : null},
-      ${data.fieldDetected ?? false}
+      ${data.fieldDetected ?? false},
+      ${data.fieldId ?? null}
     )
     ON CONFLICT (id) DO NOTHING
   `;
@@ -102,7 +107,8 @@ export async function getPreview(id: string): Promise<PreviewStore | null> {
     SELECT id, COALESCE(kind, 'glowup') AS kind, before_html AS before, after_html AS after,
            redesigned_html AS redesigned, files, url,
            before_score AS "beforeScore", after_score AS "afterScore",
-           fixes, redesign, COALESCE(field_detected, false) AS "fieldDetected", created_at AS "createdAt"
+           fixes, redesign, COALESCE(field_detected, false) AS "fieldDetected",
+           field_id AS "fieldId", created_at AS "createdAt"
     FROM vantage_previews
     WHERE id = ${id}
     LIMIT 1

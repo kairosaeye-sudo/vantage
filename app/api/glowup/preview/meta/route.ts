@@ -22,19 +22,29 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: 'Preview not found or expired.' }, { status: 404 });
   }
 
-  // Load competitor sites from the first available field
+  // Competitors are only meaningful when the site was matched to a field.
+  // Returning them for an unmatched site would let the UI show a comparison
+  // that isn't about the customer's actual peer set.
   let competitors: Array<{ url: string; score: number }> = [];
-  try {
-    const fields = await listFields();
-    if (fields.length > 0) {
-      const sites = await getFieldSites(fields[0].id);
-      competitors = sites
-        .filter((s) => !s.error && s.overall !== null && s.url !== preview.url)
-        .slice(0, 8)
-        .map((s) => ({ url: s.url, score: s.overall ?? 0 }));
+  if (preview.fieldDetected) {
+    try {
+      // Prefer the field this run actually matched; fall back to the first field
+      // for previews written before field_id was stored.
+      let fieldIdToUse = preview.fieldId;
+      if (!fieldIdToUse) {
+        const fields = await listFields();
+        fieldIdToUse = fields[0]?.id ?? null;
+      }
+      if (fieldIdToUse) {
+        const sites = await getFieldSites(fieldIdToUse);
+        competitors = sites
+          .filter((s) => !s.error && s.overall !== null && s.url !== preview.url)
+          .slice(0, 8)
+          .map((s) => ({ url: s.url, score: s.overall ?? 0 }));
+      }
+    } catch {
+      // Competitors are optional
     }
-  } catch {
-    // Competitors are optional
   }
 
   return NextResponse.json({

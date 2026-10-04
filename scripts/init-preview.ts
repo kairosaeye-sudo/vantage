@@ -57,6 +57,7 @@ async function main() {
     await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS redesigned_html TEXT`;
     // Whether a field was auto-detected for this glow-up.
     await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS field_detected BOOLEAN NOT NULL DEFAULT false`;
+    await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS field_id TEXT`;
     console.log('  redesign columns  ok');
 
     await sql`CREATE INDEX IF NOT EXISTS vantage_previews_created_idx ON vantage_previews(created_at DESC)`;
