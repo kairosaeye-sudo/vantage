@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-type Side = 'before' | 'after';
+type View = 'before' | 'after' | 'redesign';
 
 interface Fix {
   findingId: string;
@@ -22,6 +22,7 @@ interface Meta {
   verifiedGain: number;
   files: string[];
   fixes: Fix[];
+  hasRedesign: boolean;
   redesign: {
     templateId: string;
     templateLabel: string;
@@ -31,15 +32,29 @@ interface Meta {
   } | null;
 }
 
+const VIEW_LABEL: Record<View, string> = {
+  before: 'Before',
+  after: 'Fixes',
+  redesign: 'Redesign',
+};
+
+/** What each view actually is — labels alone are ambiguous. */
+const VIEW_HINT: Record<View, string> = {
+  before: 'The site as it is today',
+  after: 'Same design, technical gaps closed',
+  redesign: 'Your real content in a modern design',
+};
+
 function PreviewInner() {
   const params = useSearchParams();
   const id = params.get('id') ?? '';
-  const [view, setView] = useState<Side>('after');
+  const [view, setView] = useState<View>('after');
   const [split, setSplit] = useState(50);
   const [wide, setWide] = useState(false);
   const [annotate, setAnnotate] = useState(true);
-  const [showList, setShowList] = useState(false);
-  const [loaded, setLoaded] = useState({ before: false, after: false });
+  const [showDesign, setShowDesign] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+  const [loaded, setLoaded] = useState<Record<string, boolean>>({});
   const [meta, setMeta] = useState<Meta | null>(null);
   const dragging = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -53,12 +68,18 @@ function PreviewInner() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // What changed — drives the legend and the head-only list.
+  // What changed — drives the legend and the change lists.
   useEffect(() => {
     if (!id) return;
     fetch(`/api/glowup/preview/meta?id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
-      .then((d) => d.ok && setMeta(d))
+      .then((d) => {
+        if (!d.ok) return;
+        setMeta(d);
+        // Open on the redesign when there is one — it is the most persuasive
+        // view. Otherwise show the fixed page.
+        setView(d.hasRedesign ? 'redesign' : 'after');
+      })
       .catch(() => {});
   }, [id]);
 
@@ -85,9 +106,9 @@ function PreviewInner() {
     };
   }, []);
 
-  const src = (side: Side) =>
-    `/api/glowup/preview?id=${encodeURIComponent(id)}&side=${side}` +
-    (side === 'after' && !annotate ? '&annotate=0' : '');
+  const src = (v: View) =>
+    `/api/glowup/preview?id=${encodeURIComponent(id)}&side=${v}` +
+    (v === 'after' && !annotate ? '&annotate=0' : '');
 
   if (!id) {
     return (
@@ -100,6 +121,13 @@ function PreviewInner() {
     );
   }
 
+  const hasRedesign = meta?.hasRedesign ?? false;
+  const views: View[] = hasRedesign ? ['before', 'after', 'redesign'] : ['before', 'after'];
+  // The split compares the original against whichever result is selected.
+  const resultView: View = view === 'before' ? (hasRedesign ? 'redesign' : 'after') : view;
+  const visibleFixes = (meta?.fixes ?? []).filter((f) => !f.headOnly);
+  const headFixes = (meta?.fixes ?? []).filter((f) => f.headOnly);
+
   return (
     <main className="min-h-screen flex flex-col">
       {/* Control bar */}
@@ -109,7 +137,7 @@ function PreviewInner() {
             ← Back
           </Link>
 
-          {meta && meta.kind !== 'redesign' && (
+          {meta && (
             <span className="text-[13px] tabular-nums shrink-0">
               <span className="text-[#8a8a96]">{meta.beforeScore}</span>
               <span className="text-[#5a5a66] mx-1.5">→</span>
@@ -117,18 +145,10 @@ function PreviewInner() {
               <span className="text-[#4ade80] text-[12px] ml-1.5">+{meta.verifiedGain}</span>
             </span>
           )}
-          {meta?.kind === 'redesign' && (
-            <span
-              className="text-[11px] font-semibold px-2 py-1 rounded shrink-0"
-              style={{ background: '#15121f', color: '#b8a6ff' }}
-            >
-              {meta.redesign?.templateLabel ?? 'Redesign'}
-            </span>
-          )}
 
           {wide ? (
             <div className="flex items-center gap-3 ml-auto">
-              {meta?.kind !== 'redesign' && (
+              {view === 'after' && (
                 <button
                   onClick={() => setAnnotate((a) => !a)}
                   className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-colors"
@@ -141,16 +161,33 @@ function PreviewInner() {
                   {annotate ? 'Highlights on' : 'Highlights off'}
                 </button>
               )}
+              {views.length > 2 && (
+                <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
+                  {views.map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className="px-3 py-1.5 text-[12px] font-semibold transition-colors"
+                      style={
+                        view === v
+                          ? { background: v === 'redesign' ? '#7c5cff' : '#3a3a44', color: '#fff' }
+                          : { color: '#8a8a96' }
+                      }
+                    >
+                      {VIEW_LABEL[v]}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="text-[12px] font-semibold text-[#8a8a96]">BEFORE</span>
               <span className="text-[12px] text-[#5a5a66]">drag</span>
               <span className="text-[12px] font-semibold text-[#4ade80]">AFTER</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 ml-auto">
-              {meta?.kind !== 'redesign' && (
+              {view === 'after' && (
                 <button
                   onClick={() => setAnnotate((a) => !a)}
-                  title={annotate ? 'Highlights on' : 'Highlights off'}
                   className="text-[13px] font-semibold px-3 py-2 rounded-lg border"
                   style={
                     annotate
@@ -162,18 +199,22 @@ function PreviewInner() {
                 </button>
               )}
               <div className="flex rounded-lg overflow-hidden border border-[#26262c]">
-                {(['before', 'after'] as const).map((s) => (
+                {views.map((v) => (
                   <button
-                    key={s}
-                    onClick={() => setView(s)}
-                    className="px-4 py-2 text-[13px] font-semibold transition-colors"
+                    key={v}
+                    onClick={() => setView(v)}
+                    className="px-3 py-2 text-[13px] font-semibold transition-colors"
                     style={
-                      view === s
-                        ? { background: s === 'after' ? '#4ade80' : '#3a3a44', color: s === 'after' ? '#08080a' : '#fff' }
+                      view === v
+                        ? {
+                            background:
+                              v === 'redesign' ? '#7c5cff' : v === 'after' ? '#4ade80' : '#3a3a44',
+                            color: v === 'after' ? '#08080a' : '#fff',
+                          }
                         : { color: '#8a8a96' }
                     }
                   >
-                    {s === 'before' ? 'Before' : 'After'}
+                    {VIEW_LABEL[v]}
                   </button>
                 ))}
               </div>
@@ -181,24 +222,25 @@ function PreviewInner() {
           )}
         </div>
 
+        {/* What this view is */}
+        <div className="border-t border-[#1c1c21] px-4 py-1.5">
+          <p className="text-[11px] text-[#5a5a66] max-w-[1600px] mx-auto">{VIEW_HINT[view]}</p>
+        </div>
+
         {/* Legend: what the outlines mean */}
-        {annotate && view === 'after' && (meta?.fixes ?? []).filter((f) => !f.headOnly).length > 0 && (
+        {annotate && view === 'after' && visibleFixes.length > 0 && (
           <div className="border-t border-[#1c1c21] px-4 py-2 overflow-x-auto">
             <div className="flex gap-2 max-w-[1600px] mx-auto items-center">
-              <span className="text-[11px] text-[#5a5a66] shrink-0">
-                Highlighted changes:
-              </span>
-              {(meta?.fixes ?? [])
-                .filter((f) => !f.headOnly)
-                .map((f) => (
-                  <span
-                    key={f.findingId}
-                    className="text-[11px] font-semibold shrink-0 px-2 py-1 rounded"
-                    style={{ background: '#1a1428', color: '#b8a6ff' }}
-                  >
-                    {f.label}
-                  </span>
-                ))}
+              <span className="text-[11px] text-[#5a5a66] shrink-0">Highlighted changes:</span>
+              {visibleFixes.map((f) => (
+                <span
+                  key={f.findingId}
+                  className="text-[11px] font-semibold shrink-0 px-2 py-1 rounded"
+                  style={{ background: '#1a1428', color: '#b8a6ff' }}
+                >
+                  {f.label}
+                </span>
+              ))}
             </div>
           </div>
         )}
@@ -206,26 +248,29 @@ function PreviewInner() {
 
       {/* Frames */}
       {wide ? (
-        <div ref={frameRef} className="relative flex-1 bg-[#121215]" style={{ minHeight: 'calc(100vh - 57px)' }}>
-          {/* AFTER underneath, BEFORE clipped to the left of the divider */}
+        <div
+          ref={frameRef}
+          className="relative flex-1 bg-[#121215]"
+          style={{ minHeight: 'calc(100vh - 84px)' }}
+        >
+          {/* Result underneath, BEFORE clipped to the left of the divider */}
           <iframe
-            title="After"
-            src={src('after')}
+            title={VIEW_LABEL[resultView]}
+            src={src(resultView)}
             sandbox="allow-same-origin"
             className="absolute inset-0 w-full h-full border-0 bg-white"
-            onLoad={() => setLoaded((l) => ({ ...l, after: true }))}
+            onLoad={() => setLoaded((l) => ({ ...l, [resultView]: true }))}
           />
-          <div
-            className="absolute inset-0 overflow-hidden bg-white"
-            style={{ width: `${split}%` }}
-          >
+          <div className="absolute inset-0 overflow-hidden bg-white" style={{ width: `${split}%` }}>
             <iframe
               title="Before"
               src={src('before')}
               sandbox="allow-same-origin"
               className="border-0 bg-white"
               style={{
-                width: frameRef.current ? `${frameRef.current.getBoundingClientRect().width}px` : '100vw',
+                width: frameRef.current
+                  ? `${frameRef.current.getBoundingClientRect().width}px`
+                  : '100vw',
                 height: '100%',
               }}
               onLoad={() => setLoaded((l) => ({ ...l, before: true }))}
@@ -247,14 +292,23 @@ function PreviewInner() {
             </div>
           </div>
 
-          <div className="absolute bottom-3 left-3 z-10 chip" style={{ background: 'rgba(0,0,0,.75)', color: '#fff' }}>
+          <div
+            className="absolute bottom-3 left-3 z-10 chip"
+            style={{ background: 'rgba(0,0,0,.75)', color: '#fff' }}
+          >
             Before
           </div>
-          <div className="absolute bottom-3 right-3 z-10 chip" style={{ background: 'rgba(0,0,0,.75)', color: '#4ade80' }}>
-            After
+          <div
+            className="absolute bottom-3 right-3 z-10 chip"
+            style={{
+              background: 'rgba(0,0,0,.75)',
+              color: resultView === 'redesign' ? '#b8a6ff' : '#4ade80',
+            }}
+          >
+            {VIEW_LABEL[resultView]}
           </div>
 
-          {(!loaded.before || !loaded.after) && (
+          {!loaded.before && !loaded[resultView] && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#121215] z-30">
               <p className="text-[14px] text-[#8a8a96]">Loading both versions…</p>
             </div>
@@ -263,29 +317,34 @@ function PreviewInner() {
       ) : (
         <div className="flex-1 bg-white">
           <iframe
-            title={view === 'after' ? 'After' : 'Before'}
+            title={VIEW_LABEL[view]}
             src={src(view)}
             sandbox="allow-same-origin"
             className="w-full border-0 bg-white"
-            style={{ height: 'calc(100vh - 57px)' }}
+            style={{ height: 'calc(100vh - 116px)' }}
           />
         </div>
       )}
 
-      {/* Redesign: what changed, and what we could not use. */}
-      {meta?.kind === 'redesign' && meta.redesign && (
+      {/* Design rebuild: what changed, and what we could not use. */}
+      {meta?.redesign && (
         <div className="border-t border-[#26262c] bg-[#0d0d10]">
           <button
-            onClick={() => setShowList((s) => !s)}
+            onClick={() => setShowDesign((s) => !s)}
             className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
           >
             <span className="text-[13px] font-semibold text-[#c9c9d2]">
-              What changed in this redesign ({meta.redesign.changes.length})
+              Design rebuild — what changed ({meta.redesign.changes.length})
             </span>
-            <span className="text-[#5a5a66] text-[13px]">{showList ? 'Hide' : 'Show'}</span>
+            <span className="text-[#5a5a66] text-[13px]">{showDesign ? 'Hide' : 'Show'}</span>
           </button>
-          {showList && (
+          {showDesign && (
             <div className="px-4 pb-5 max-w-[1600px] mx-auto">
+              <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
+                Template: <span className="text-[#b8a6ff]">{meta.redesign.templateLabel}</span>. The
+                technical fixes are score-verified; a redesign is a design judgement, so review it
+                before sending it to a client.
+              </p>
               <ul className="space-y-3 mb-5">
                 {meta.redesign.changes.map((c) => (
                   <li key={c.label} className="card p-3">
@@ -299,8 +358,8 @@ function PreviewInner() {
                 <>
                   <p className="text-[13px] font-semibold mb-1">Sections left out</p>
                   <p className="text-[12px] text-[#5a5a66] mb-3 leading-relaxed">
-                    Only content that actually exists on the original site is rendered. Nothing
-                    was invented.
+                    Only content that actually exists on the original site is rendered. Nothing was
+                    invented.
                   </p>
                   <ul className="space-y-2 mb-5">
                     {meta.redesign.omitted.map((o) => (
@@ -331,35 +390,31 @@ function PreviewInner() {
         </div>
       )}
 
-      {/* Head-level changes: real, but not visible on the rendered page. */}
-      {(meta?.fixes ?? []).filter((f) => f.headOnly).length > 0 && (
+      {/* Technical fixes: real, but not visible on the rendered page. */}
+      {headFixes.length > 0 && (
         <div className="border-t border-[#26262c] bg-[#0d0d10]">
           <button
-            onClick={() => setShowList((s) => !s)}
+            onClick={() => setShowCode((s) => !s)}
             className="w-full px-4 py-3 flex items-center justify-between max-w-[1600px] mx-auto"
           >
             <span className="text-[13px] font-semibold text-[#c9c9d2]">
-              Also changed in the page code ({(meta?.fixes ?? []).filter((f) => f.headOnly).length})
+              Also changed in the page code ({headFixes.length})
             </span>
-            <span className="text-[#5a5a66] text-[13px]">{showList ? 'Hide' : 'Show'}</span>
+            <span className="text-[#5a5a66] text-[13px]">{showCode ? 'Hide' : 'Show'}</span>
           </button>
-          {showList && (
+          {showCode && (
             <div className="px-4 pb-4 max-w-[1600px] mx-auto space-y-2">
-              {(meta?.fixes ?? [])
-                .filter((f) => f.headOnly)
-                .map((f) => (
-                  <div key={f.findingId} className="card p-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-medium">{f.label}</p>
-                      <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mt-0.5">
-                        {f.category} · not visible on the page
-                      </p>
-                    </div>
-                    <span className="text-[12px] text-[#7c5cff] font-semibold shrink-0">
-                      +{f.points}
-                    </span>
+              {headFixes.map((f) => (
+                <div key={f.findingId} className="card p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium">{f.label}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mt-0.5">
+                      {f.category} · not visible on the page
+                    </p>
                   </div>
-                ))}
+                  <span className="text-[12px] text-[#7c5cff] font-semibold shrink-0">+{f.points}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

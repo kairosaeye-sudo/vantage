@@ -17,7 +17,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   const id = params.get('id');
-  const side = params.get('side') === 'after' ? 'after' : 'before';
+  const rawSide = params.get('side');
+  // Three views: the original, the technical fix, and the visual rebuild.
+  const side: 'before' | 'after' | 'redesign' =
+    rawSide === 'after' ? 'after' : rawSide === 'redesign' ? 'redesign' : 'before';
   // `annotate=0` lets the UI show the clean rebuilt page without outlines.
   const annotate = params.get('annotate') !== '0';
 
@@ -34,8 +37,18 @@ export async function GET(req: Request) {
     );
   }
 
-  const raw = side === 'after' ? preview.after : preview.before;
-  const doc = makeRenderable(raw, preview.url, side === 'after' && annotate);
+  const source =
+    side === 'after' ? preview.after : side === 'redesign' ? preview.redesigned : preview.before;
+
+  if (side === 'redesign' && !source) {
+    return new Response(
+      `<!doctype html><meta charset="utf-8"><body style="font:14px system-ui;padding:24px;color:#888">
+         No redesigned version for this run.</body>`,
+      { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    );
+  }
+
+  const doc = makeRenderable(source ?? '', preview.url, side === 'after' && annotate);
 
   return new Response(doc, {
     status: 200,

@@ -3,32 +3,53 @@ import { randomUUID } from 'crypto';
 import { runGlowUp, saveGlowUp, listGlowUps } from '@/lib/glowup-run';
 import { savePreview } from '@/lib/preview-store';
 import { fetchSite } from '@/lib/fetch-site';
+import { buildRedesign } from '@/lib/redesign';
+import { TEMPLATES } from '@/lib/design-system';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
  * Run a glow-up.
  *
- * POST { url, watchId? }
+ * POST { url, watchId?, redesign?, template? }
  *
- * Returns the verified before/after (re-scored, not estimated), the plan, and a
- * `previewId` for viewing the actual before/after pages. The HTML itself is not
- * returned here — it is too large for a JSON response and is streamed from
- * /api/glowup/preview instead.
+ * A glow-up is one job with two halves:
+ *   1. Technical fixes — measured, re-scored, verified.
+ *   2. Visual rebuild — real content re-rendered through the design system.
+ *
+ * Both run by default and come back together, because that is what "glow up
+ * this site" means to a customer. `redesign: false` skips the rebuild for a
+ * fast, score-only run.
+ *
+ * The HTML is never returned inline — it is too large for JSON. A `previewId`
+ * is returned instead and each view is streamed from /api/glowup/preview.
  */
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { url?: string; watchId?: string };
+    const body = (await req.json()) as {
+      url?: string;
+      watchId?: string;
+      redesign?: boolean;
+      template?: string;
+    };
     const url = (body.url ?? '').trim();
     if (!url) {
       return NextResponse.json({ ok: false, error: 'Enter a website URL.' }, { status: 400 });
     }
 
+    const wantRedesign = body.redesign !== false;
+    if (body.template && !(body.template in TEMPLATES)) {
+      return NextResponse.json(
+        { ok: false, error: `Unknown template. Use one of: ${Object.keys(TEMPLATES).join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     const { record, before, after, files, html, applied } = await runGlowUp(url);
 
-    // Grab the original HTML so the preview can show the real before state.
+    // Fetch the original once — the preview needs it, and so does the redesign.
     let originalHtml = '';
     try {
       const fetched = await fetchSite(before.finalUrl);
@@ -36,6 +57,73 @@ export async function POST(req: Request) {
     } catch {
       originalHtml = '<!doctype html><p>Could not retrieve the original page for preview.</p>';
     }
+
+    /* ---------------- Visual rebuild ---------------- */
+
+    let redesign: {
+      html: string;
+      template: { id: string; label: string; suitedTo: string; accent: string };
+      changes: Array<{ label: string; detail: string; kind: string }>;
+      omitted: Array<{ section: string; reason: string }>;
+      needsFromClient: string[];
+      content: {
+        businessName: string;
+        headline: string | null;
+        phone: string | null;
+        address: string | null;
+        services: string[];
+        testimonialCount: number;
+        imageCount: number;
+        hoursCount: number;
+      };
+      stats: { beforeBytes: number; afterBytes: number; sections: number };
+    } | null = null;
+
+    let redesignError: string | null = null;
+
+    if (wantRedesign && originalHtml) {
+      try {
+        const r = buildRedesign(originalHtml, before.finalUrl, { templateId: body.template });
+        const c = r.content;
+        // A redesign needs real content. If the page is JS-rendered or blocked we
+        // get nothing usable — report that rather than render an empty shell.
+        const realFacts = [c.headline, c.phone, c.address, ...c.services.map((s) => s.name)].filter(
+          Boolean
+        ).length;
+        if (realFacts === 0) {
+          redesignError =
+            'We could not read enough content to rebuild the design. The site may render entirely with JavaScript, or it may be blocking automated requests. The technical fixes above still apply.';
+        } else {
+          redesign = {
+            html: r.html,
+            template: {
+              id: r.template.id,
+              label: r.template.label,
+              suitedTo: r.template.suitedTo,
+              accent: r.template.palette.accent,
+            },
+            changes: r.changes,
+            omitted: r.omitted,
+            needsFromClient: r.needsFromClient,
+            content: {
+              businessName: c.businessName,
+              headline: c.headline,
+              phone: c.phone,
+              address: c.address,
+              services: c.services.map((s) => s.name),
+              testimonialCount: c.testimonials.length,
+              imageCount: c.images.length,
+              hoursCount: c.hours.length,
+            },
+            stats: r.stats,
+          };
+        }
+      } catch (e) {
+        redesignError = e instanceof Error ? e.message : 'The visual rebuild failed.';
+      }
+    }
+
+    /* ---------------- Preview ---------------- */
 
     const previewId = randomUUID();
     try {
@@ -60,13 +148,24 @@ export async function POST(req: Request) {
         }));
 
       await savePreview(previewId, {
+        kind: 'glowup',
         before: originalHtml,
         after: html,
+        redesigned: redesign?.html ?? null,
         files,
         url: before.finalUrl,
         beforeScore: before.overall,
         afterScore: after.overall,
         fixes,
+        redesign: redesign
+          ? {
+              templateId: redesign.template.id,
+              templateLabel: redesign.template.label,
+              changes: redesign.changes,
+              omitted: redesign.omitted,
+              needsFromClient: redesign.needsFromClient,
+            }
+          : null,
       });
     } catch {
       // A preview-store failure must not lose the result the user asked for.
@@ -105,6 +204,11 @@ export async function POST(req: Request) {
         grade: after.grade,
         categories: after.categories.map((c) => ({ label: c.label, score: c.score })),
       },
+      /** The visual rebuild, when one was produced. */
+      redesign,
+      redesignError,
+      /** A redesign is a design judgement and must be seen before it ships. */
+      redesignRequiresReview: redesign !== null,
     });
   } catch (e) {
     return NextResponse.json(

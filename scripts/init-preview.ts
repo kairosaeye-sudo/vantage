@@ -53,6 +53,8 @@ async function main() {
     // Redesign previews share the table; `kind` separates them from glow-ups.
     await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'glowup'`;
     await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS redesign JSONB`;
+    // The redesigned page is a third view alongside before/after.
+    await sql`ALTER TABLE vantage_previews ADD COLUMN IF NOT EXISTS redesigned_html TEXT`;
     console.log('  redesign columns  ok');
 
     await sql`CREATE INDEX IF NOT EXISTS vantage_previews_created_idx ON vantage_previews(created_at DESC)`;

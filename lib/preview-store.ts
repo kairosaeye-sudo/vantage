@@ -38,10 +38,13 @@ export interface RedesignMeta {
 
 export interface PreviewStore {
   id: string;
-  /** 'glowup' = technical fixes. 'redesign' = visual rebuild. */
+  /** 'glowup' = technical fixes. 'redesign' = visual rebuild (legacy standalone runs). */
   kind: 'glowup' | 'redesign';
   before: string;
+  /** The page after technical fixes (same design, gaps closed). */
   after: string;
+  /** The page rebuilt through the modern design system. Null when not run. */
+  redesigned: string | null;
   files: Record<string, string>;
   url: string;
   beforeScore: number;
@@ -57,6 +60,8 @@ export async function savePreview(
     kind?: 'glowup' | 'redesign';
     before: string;
     after: string;
+    /** Optional third view: the redesigned page. */
+    redesigned?: string | null;
     files: Record<string, string>;
     url: string;
     beforeScore: number;
@@ -68,9 +73,10 @@ export async function savePreview(
 ): Promise<void> {
   const sql = db();
   await sql`
-    INSERT INTO vantage_previews (id, kind, before_html, after_html, files, url, before_score, after_score, fixes, redesign)
+    INSERT INTO vantage_previews (id, kind, before_html, after_html, redesigned_html, files, url, before_score, after_score, fixes, redesign)
     VALUES (
-      ${id}, ${data.kind ?? 'glowup'}, ${data.before}, ${data.after}, ${sql.json(data.files as never)},
+      ${id}, ${data.kind ?? 'glowup'}, ${data.before}, ${data.after}, ${data.redesigned ?? null},
+      ${sql.json(data.files as never)},
       ${data.url}, ${data.beforeScore}, ${data.afterScore}, ${sql.json(data.fixes as never)},
       ${data.redesign ? sql.json(data.redesign as never) : null}
     )
@@ -88,7 +94,8 @@ export async function savePreview(
 export async function getPreview(id: string): Promise<PreviewStore | null> {
   const sql = db();
   const rows = await sql<PreviewStore[]>`
-    SELECT id, COALESCE(kind, 'glowup') AS kind, before_html AS before, after_html AS after, files, url,
+    SELECT id, COALESCE(kind, 'glowup') AS kind, before_html AS before, after_html AS after,
+           redesigned_html AS redesigned, files, url,
            before_score AS "beforeScore", after_score AS "afterScore",
            fixes, redesign, created_at AS "createdAt"
     FROM vantage_previews

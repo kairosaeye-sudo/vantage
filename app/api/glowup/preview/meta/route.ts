@@ -31,6 +31,8 @@ export async function GET(req: Request) {
     files: Object.keys(preview.files ?? {}),
     fixes: preview.fixes ?? [],
     redesign: preview.redesign ?? null,
+    /** True when a third, redesigned view exists. */
+    hasRedesign: Boolean(preview.redesigned),
     createdAt: preview.createdAt,
   });
 }

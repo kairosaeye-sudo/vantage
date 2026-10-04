@@ -151,9 +151,6 @@ export default function Home() {
         <a href="/watch" className="btn-ghost mb-3">
           Monitor this weekly — $49/mo
         </a>
-        <a href="/redesign" className="btn-ghost mb-3">
-          Redesign an old site
-        </a>
         <a href="/pricing" className="block text-center text-[13px] text-[#8a8a96] py-2">
           See plans
         </a>

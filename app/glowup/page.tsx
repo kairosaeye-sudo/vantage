@@ -16,6 +16,24 @@ interface CatScore {
   score: number;
 }
 
+interface RedesignInfo {
+  template: { id: string; label: string; suitedTo: string; accent: string };
+  changes: Array<{ label: string; detail: string; kind: string }>;
+  omitted: Array<{ section: string; reason: string }>;
+  needsFromClient: string[];
+  content: {
+    businessName: string;
+    headline: string | null;
+    phone: string | null;
+    address: string | null;
+    services: string[];
+    testimonialCount: number;
+    imageCount: number;
+    hoursCount: number;
+  };
+  stats: { beforeBytes: number; afterBytes: number; sections: number };
+}
+
 interface Result {
   previewId?: string;
   record: {
@@ -35,7 +53,19 @@ interface Result {
   };
   before: { overall: number; grade: string; categories: CatScore[] };
   after: { overall: number; grade: string; categories: CatScore[] };
+  redesign: RedesignInfo | null;
+  redesignError: string | null;
 }
+
+const KIND_LABEL: Record<string, string> = {
+  mobile: 'Mobile',
+  type: 'Typography',
+  colour: 'Colour',
+  layout: 'Layout',
+  structure: 'Structure',
+  content: 'Content',
+  motion: 'Motion',
+};
 
 export default function GlowUp() {
   const [url, setUrl] = useState('');
@@ -79,10 +109,10 @@ export default function GlowUp() {
     return (
       <main className="min-h-screen px-5 pt-20 max-w-lg mx-auto text-center">
         <div className="card p-6">
-          <p className="text-[15px] font-semibold mb-2">Rebuilding your site…</p>
+          <p className="text-[15px] font-semibold mb-2">Glowing up your site…</p>
           <p className="text-[13px] text-[#8a8a96] leading-relaxed">
-            Scoring the original, applying fixes, then re-scoring the rebuilt page to
-            verify the gain. About 30 seconds.
+            Scoring the original, applying fixes, re-scoring to verify the gain, then rebuilding
+            the design from your real content. About 45 seconds.
           </p>
         </div>
       </main>
@@ -143,6 +173,72 @@ export default function GlowUp() {
             </a>
           )}
         </div>
+
+        {/* Visual rebuild — the other half of the glow-up */}
+        {res.redesign && (
+          <>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
+              Modern redesign
+            </h2>
+            <div className="card p-4 mb-5">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold">{res.redesign.template.label}</p>
+                  <p className="text-[12px] text-[#5a5a66] mt-0.5">
+                    {res.redesign.content.businessName} — {res.redesign.stats.sections} sections
+                    rebuilt
+                  </p>
+                </div>
+                <span
+                  className="text-[11px] font-semibold px-2 py-1 rounded shrink-0"
+                  style={{ background: '#15121f', color: '#b8a6ff' }}
+                >
+                  {res.redesign.changes.length} changes
+                </span>
+              </div>
+
+              <p className="text-[12px] text-[#8a8a96] leading-relaxed mb-3">
+                Your real content — services, reviews, photos, phone — re-rendered in a modern
+                layout. Nothing invented.
+              </p>
+
+              <div className="space-y-1.5 mb-3">
+                {[
+                  ['Services', res.redesign.content.services.length],
+                  ['Reviews', res.redesign.content.testimonialCount],
+                  ['Photos', res.redesign.content.imageCount],
+                  ['Hours', res.redesign.content.hoursCount],
+                ]
+                  .filter(([, n]) => (n as number) > 0)
+                  .map(([k, n]) => (
+                    <div key={k as string} className="flex justify-between text-[13px]">
+                      <span className="text-[#8a8a96]">{k} used</span>
+                      <span className="tabular-nums">{n}</span>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {Array.from(new Set(res.redesign.changes.map((c) => c.kind))).map((k) => (
+                  <span
+                    key={k}
+                    className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                    style={{ background: '#1a1428', color: '#b8a6ff' }}
+                  >
+                    {KIND_LABEL[k] ?? k}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {res.redesignError && (
+          <div className="card p-4 mb-5" style={{ background: '#16161a' }}>
+            <p className="text-[13px] font-semibold mb-1">Design rebuild not available</p>
+            <p className="text-[12px] text-[#8a8a96] leading-relaxed">{res.redesignError}</p>
+          </div>
+        )}
 
         {/* Category movement */}
         <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
@@ -230,8 +326,8 @@ export default function GlowUp() {
         <div className="card p-4 mb-5" style={{ background: '#15121f', borderColor: '#7c5cff' }}>
           <p className="text-[14px] font-semibold mb-1.5">Keep going</p>
           <p className="text-[13px] text-[#a0a0ac] leading-relaxed mb-3">
-            Monitoring re-checks this weekly. When the field moves ahead again, you&apos;ll
-            get the next round of fixes.
+            Monitoring re-checks this weekly. When the field moves ahead again, you&apos;ll get the
+            next round of fixes.
           </p>
           <Link href="/watch" className="btn-primary">
             Start monitoring — $49/mo
@@ -253,8 +349,8 @@ export default function GlowUp() {
 
       <h1 className="text-[28px] font-bold tracking-tight mb-2">Glow up</h1>
       <p className="text-[#8a8a96] text-[15px] leading-relaxed mb-7">
-        We rebuild your page to fix what the check found, then re-score it to prove the
-        gain. No estimate — the number comes from the same engine.
+        We fix what the check found, then rebuild the page in a modern design — keeping your real
+        content. You get both versions side by side.
       </p>
 
       <form onSubmit={submit} className="space-y-5">
