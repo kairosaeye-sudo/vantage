@@ -8,6 +8,7 @@ import { TEMPLATES } from '@/lib/design-system';
 import { extractDesignSignals } from '@/lib/design-signals';
 import { buildFieldDesignBrief, type FieldSite } from '@/lib/field-design';
 import { getFieldSites } from '@/lib/field-from-db';
+import { detectFieldWithMeta } from '@/lib/field-detect';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -62,12 +63,30 @@ export async function POST(req: Request) {
       originalHtml = '<!doctype html><p>Could not retrieve the original page for preview.</p>';
     }
 
+    /* ---------------- Field auto-detection ---------------- */
+
+    let detectedField: {
+      fieldId: string | null;
+      fieldSlug: string | null;
+      fieldIndustry: string | null;
+      fieldLocation: string | null;
+      score: number;
+    } = { fieldId: null, fieldSlug: null, fieldIndustry: null, fieldLocation: null, score: 0 };
+
+    const effectiveFieldId = body.fieldId ?? null;
+
+    if (!effectiveFieldId && originalHtml) {
+      detectedField = await detectFieldWithMeta(originalHtml);
+    }
+
+    const fieldIdToUse = effectiveFieldId ?? detectedField.fieldId;
+
     /* ---------------- Field design brief ---------------- */
 
     let fieldBrief = null;
-    if (body.fieldId) {
+    if (fieldIdToUse) {
       try {
-        const fieldSites = await getFieldSites(body.fieldId);
+        const fieldSites = await getFieldSites(fieldIdToUse);
         const sitesWithSignals: FieldSite[] = [];
         for (const row of fieldSites) {
           if (row.error || row.overall === null) continue;
@@ -238,6 +257,8 @@ export async function POST(req: Request) {
       redesignError,
       /** A redesign is a design judgement and must be seen before it ships. */
       redesignRequiresReview: redesign !== null,
+      /** Field auto-detection result. */
+      detectedField: detectedField.fieldId ? detectedField : null,
     });
   } catch (e) {
     return NextResponse.json(
