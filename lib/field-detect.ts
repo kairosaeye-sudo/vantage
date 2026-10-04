@@ -35,21 +35,49 @@ function extractText(html: string): string {
   return $('body').text().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/**
+ * Keywords that are ambiguous — they appear in other industries' copy.
+ * "extraction" is a drain-cleaning term as often as a dental one; "crown" is
+ * a roofing term; "filling" is what you do to a form. These score low so a
+ * single hit cannot carry a match on its own.
+ */
+const WEAK_INDUSTRY_KEYWORDS = new Set([
+  'extraction', 'filling', 'crown', 'oral', 'teeth', 'whitening', 'veneer',
+  'panel', 'outlet', 'circuit', 'breaker', 'pipe', 'leak', 'faucet',
+  'shingle', 'gutter', 'siding', 'chimney', 'skylight',
+  'heating', 'cooling', 'thermostat', 'ventilation',
+  'garden', 'tree', 'hedge', 'mulch', 'sod',
+  'wallpaper', 'stain', 'drywall',
+  'contract', 'legal', 'tax', 'audit', 'financial',
+  'maid', 'janitorial',
+]);
+
+/** Match a keyword only as a whole word, so "co" cannot match "company". */
+function hasWord(text: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(text);
+}
+
 function scoreField(text: string, field: DbField): number {
   let score = 0;
 
-  // Industry match
+  // Industry match. Weak keywords score low so an ambiguous single hit — a
+  // plumber's "water extraction" — cannot pull a site into the wrong field.
   const industryKeywords = INDUSTRY_KEYWORDS[field.industry.toLowerCase()] ?? [];
   for (const kw of industryKeywords) {
-    if (text.includes(kw)) {
-      score += 10;
+    if (hasWord(text, kw)) {
+      score += WEAK_INDUSTRY_KEYWORDS.has(kw) ? 3 : 10;
     }
   }
 
-  // Location match
+  // Location match. Whole words only: a two-letter state code like "co" must
+  // not match inside "company", or every site matches a Colorado field.
   const locationParts = field.location.toLowerCase().split(/[,\s]+/).filter(Boolean);
   for (const part of locationParts) {
-    if (text.includes(part)) {
+    if (part.length <= 2) {
+      // State codes are only meaningful as a standalone token.
+      if (hasWord(text, part)) score += 5;
+    } else if (hasWord(text, part)) {
       score += 5;
     }
   }
@@ -57,7 +85,7 @@ function scoreField(text: string, field: DbField): number {
   // Slug match (e.g., "electricians-austin-tx")
   const slugParts = field.slug.toLowerCase().split('-');
   for (const part of slugParts) {
-    if (part.length > 2 && text.includes(part)) {
+    if (part.length > 2 && hasWord(text, part)) {
       score += 3;
     }
   }
@@ -83,7 +111,7 @@ export async function detectField(html: string): Promise<string | null> {
   }
 
   // Require a minimum score to avoid false positives
-  if (bestScore >= 10 && bestField) {
+  if (bestScore >= 13 && bestField) {
     return bestField.id;
   }
 
@@ -144,7 +172,7 @@ export async function detectFieldWithMeta(html: string): Promise<{
     }
   }
 
-  if (bestScore >= 10 && bestField) {
+  if (bestScore >= 13 && bestField) {
     return {
       fieldId: bestField.id,
       fieldSlug: bestField.slug,
