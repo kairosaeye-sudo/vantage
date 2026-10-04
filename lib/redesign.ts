@@ -9,6 +9,7 @@ import {
   type EnhancedCopy,
   type FactSheet,
 } from './ai-copy';
+import type { FieldDesignBrief } from './field-design';
 
 /**
  * Redesign engine — v2.
@@ -210,6 +211,8 @@ export interface BuildOptions {
   year?: number;
   /** Force the deterministic writer even when a provider is configured. */
   noAi?: boolean;
+  /** Field design brief — informs the redesign with competitor signals. */
+  fieldBrief?: FieldDesignBrief | null;
 }
 
 export async function buildRedesign(
@@ -385,8 +388,31 @@ export async function buildRedesign(
     finalUrl,
   ].join(' ');
   const forced = opts.templateId as TemplateId | undefined;
+  const brief = opts.fieldBrief;
+
+  // When a field brief is available, use the field's dominant accent color
+  // and color scheme instead of the template default.
   const template: Template =
     forced && forced in TEMPLATES ? TEMPLATES[forced] : chooseTemplate(haystack);
+
+  // Override palette with field signals when available
+  const palette = { ...template.palette };
+  if (brief) {
+    if (brief.tokens.dominantAccent) {
+      palette.accent = brief.tokens.dominantAccent;
+    }
+    if (brief.tokens.colorScheme === 'dark') {
+      palette.bg = '#0a0a0b';
+      palette.surface = '#121214';
+      palette.text = '#e8e8ec';
+      palette.muted = '#8a8a96';
+    } else if (brief.tokens.colorScheme === 'light') {
+      palette.bg = '#ffffff';
+      palette.surface = '#f8f9fa';
+      palette.text = '#1a1a2e';
+      palette.muted = '#6c757d';
+    }
+  }
 
   const changes: RedesignChange[] = [];
   const omitted: Array<{ section: string; reason: string }> = [];
@@ -781,6 +807,14 @@ export async function buildRedesign(
 
   /* ---------------- Design changes ---------------- */
 
+  if (brief) {
+    changes.unshift({
+      label: 'Design matched to your industry',
+      detail: `Colour scheme, accent colour (${palette.accent}) and component choices are based on what the top ${brief.stats.eliteCount} performers in your field use — not a generic template.`,
+      kind: 'colour',
+    });
+  }
+
   changes.unshift(
     { label: 'Mobile-first responsive layout', detail: 'The original used a fixed-width layout. This one is fluid from 320px up, so it fits every phone without pinch-zooming.', kind: 'mobile' },
     { label: 'Fluid type scale', detail: 'Headings scale with the viewport (clamp) instead of fixed pixel sizes, so the page reads correctly on a phone and a 27-inch monitor alike.', kind: 'type' },
@@ -809,7 +843,7 @@ export async function buildRedesign(
 <meta property="og:url" content="${esc(finalUrl)}">
 ${images[0] ? `<meta property="og:image" content="${esc(images[0].src)}">` : ''}
 <link rel="canonical" href="${esc(finalUrl)}">
-<style>${baseStyles(template)}</style>
+<style>${baseStyles({ ...template, palette })}</style>
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 ${faqLd ? `<script type="application/ld+json">${faqLd}</script>` : ''}
 </head>

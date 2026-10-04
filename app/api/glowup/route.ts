@@ -5,6 +5,9 @@ import { savePreview } from '@/lib/preview-store';
 import { fetchSite } from '@/lib/fetch-site';
 import { buildRedesign } from '@/lib/redesign';
 import { TEMPLATES } from '@/lib/design-system';
+import { extractDesignSignals } from '@/lib/design-signals';
+import { buildFieldDesignBrief, type FieldSite } from '@/lib/field-design';
+import { getFieldSites } from '@/lib/field-from-db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +36,7 @@ export async function POST(req: Request) {
       watchId?: string;
       redesign?: boolean;
       template?: string;
+      fieldId?: string;
     };
     const url = (body.url ?? '').trim();
     if (!url) {
@@ -56,6 +60,31 @@ export async function POST(req: Request) {
       originalHtml = fetched.html;
     } catch {
       originalHtml = '<!doctype html><p>Could not retrieve the original page for preview.</p>';
+    }
+
+    /* ---------------- Field design brief ---------------- */
+
+    let fieldBrief = null;
+    if (body.fieldId) {
+      try {
+        const fieldSites = await getFieldSites(body.fieldId);
+        const sitesWithSignals: FieldSite[] = [];
+        for (const row of fieldSites) {
+          if (row.error || row.overall === null) continue;
+          try {
+            const f = await fetchSite(row.url);
+            const signals = extractDesignSignals(f.html);
+            sitesWithSignals.push({ url: row.url, score: row.overall, signals });
+          } catch {
+            // Skip sites that can't be fetched
+          }
+        }
+        if (sitesWithSignals.length > 0) {
+          fieldBrief = buildFieldDesignBrief(sitesWithSignals);
+        }
+      } catch {
+        // Field brief is optional — proceed without it
+      }
     }
 
     /* ---------------- Visual rebuild ---------------- */
@@ -83,7 +112,7 @@ export async function POST(req: Request) {
 
     if (wantRedesign && originalHtml) {
       try {
-        const r = await buildRedesign(originalHtml, before.finalUrl, { templateId: body.template });
+        const r = await buildRedesign(originalHtml, before.finalUrl, { templateId: body.template, fieldBrief });
         const c = r.content;
         // A redesign needs real content. If the page is JS-rendered or blocked we
         // get nothing usable — report that rather than render an empty shell.
