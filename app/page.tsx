@@ -100,17 +100,10 @@ export default function Home() {
 
         <div>
           <label className="label" htmlFor="field">
-            Your field
+            Your field <span className="text-[#5a5a66] font-normal">(optional)</span>
           </label>
           {loadingFields ? (
             <div className="field text-[#5a5a66]">Loading fields…</div>
-          ) : fields.length === 0 ? (
-            <div className="card p-4 text-[14px] text-[#8a8a96]">
-              No fields yet.{' '}
-              <a href="/build" className="text-[#7c5cff] font-semibold">
-                Build one →
-              </a>
-            </div>
           ) : (
             <select
               id="field"
@@ -118,6 +111,7 @@ export default function Home() {
               value={fieldSlug}
               onChange={(e) => setFieldSlug(e.target.value)}
             >
+              <option value="">We'll find the closest match</option>
               {fields.map((f) => (
                 <option key={f.slug} value={f.slug}>
                   {f.industry} — {f.location} ({f.siteCount} sites)
@@ -125,10 +119,14 @@ export default function Home() {
               ))}
             </select>
           )}
-          {selected && (
+          {selected ? (
             <p className="text-[12px] text-[#5a5a66] mt-2">
               Comparing you against {selected.siteCount} {selected.industry.toLowerCase()} sites
               {selected.avg !== null && ` · field average ${selected.avg}`}
+            </p>
+          ) : (
+            <p className="text-[12px] text-[#5a5a66] mt-2">
+              We'll detect your industry and location from your site.
             </p>
           )}
         </div>
@@ -139,7 +137,7 @@ export default function Home() {
           </div>
         )}
 
-        <button className="btn-primary" disabled={loading || !fieldSlug || !url}>
+        <button className="btn-primary" disabled={loading || !url}>
           {loading ? 'Scoring… this takes ~20s' : 'Score my site'}
         </button>
       </form>
@@ -149,7 +147,7 @@ export default function Home() {
           Build a new field
         </a>
         <a href="/watch" className="btn-ghost mb-3">
-          Monitor this weekly — $49/mo
+          Monitor this weekly — $149/mo
         </a>
         <a href="/pricing" className="block text-center text-[13px] text-[#8a8a96] py-2">
           See plans

@@ -29,6 +29,18 @@ interface Recommendation {
   finding: { label: string; detail: string; status: string };
 }
 
+interface NoFieldSuggestion {
+  detectedIndustry: string;
+  detectedIndustryStrength: number;
+  detectedCity: string | null;
+  detectedRegion: string | null;
+  locationSource: string | null;
+  suggestedFieldSlug: string;
+  suggestedFieldIndustry: string;
+  suggestedFieldLocation: string;
+  message: string;
+}
+
 interface Result {
   ok: boolean;
   side: {
@@ -39,6 +51,7 @@ interface Result {
     headline: string;
   };
   field: { industry: string; location: string };
+  noFieldSuggestion: NoFieldSuggestion | null;
 }
 
 const VERDICT_STYLE: Record<string, { color: string; bg: string; text: string }> = {
@@ -134,6 +147,44 @@ export default function Results() {
         </div>
         <p className="text-[13px] text-[#8a8a96] leading-relaxed">{headline}</p>
         <p className="text-[12px] text-[#5a5a66] mt-2 break-all">{you.url}</p>
+      </div>
+
+      {/* No-field suggestion banner */}
+      {data.noFieldSuggestion && (
+        <div className="card p-4 mb-5 border-l-2 border-l-[#7c5cff]">
+          <p className="text-[13px] text-[#a0a0ac] leading-relaxed">
+            {data.noFieldSuggestion.message}
+          </p>
+          <p className="text-[12px] text-[#5a5a66] mt-2">
+            We're building a {data.noFieldSuggestion.detectedIndustry} field for{' '}
+            {data.noFieldSuggestion.detectedCity ?? data.noFieldSuggestion.detectedRegion ?? 'your area'}.
+            Want to be first?{' '}
+            <Link href="/glowup" className="text-[#7c5cff] font-semibold">
+              Run a glow-up
+            </Link>{' '}
+            and we'll notify you when it's ready.
+          </p>
+        </div>
+      )}
+
+      {/* Inline site preview */}
+      <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
+        Your site right now
+      </h2>
+      <div className="card mb-5 overflow-hidden">
+        <div className="border-b border-[#1c1c21] bg-[#0e0e10] px-4 py-2 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#f87171]" />
+          <span className="w-2 h-2 rounded-full bg-[#fbbf24]" />
+          <span className="w-2 h-2 rounded-full bg-[#4ade80]" />
+          <span className="text-[11px] text-[#5a5a66] ml-2 truncate">{you.url}</span>
+        </div>
+        <iframe
+          src={you.url}
+          className="w-full h-64 border-0 bg-white"
+          sandbox="allow-same-origin allow-scripts"
+          loading="lazy"
+          title="Your current site"
+        />
       </div>
 
       {/* Side by side */}

@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { scoreSite } from '@/lib/score-site';
 import { buildSideBySide } from '@/lib/compare';
-import { getFieldBySlug, getFieldSites, rowsToPeers } from '@/lib/field-from-db';
+import { getFieldBySlug, getFieldSites, listFields, rowsToPeers } from '@/lib/field-from-db';
 import { saveScan } from '@/lib/db';
+import { detectFieldWithMeta } from '@/lib/field-detect';
+import { guessIndustry } from '@/lib/industry-guess';
+import { detectLocation } from '@/lib/location-detect';
+import { fetchSite } from '@/lib/fetch-site';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,14 +26,7 @@ export async function POST(req: Request) {
     if (!url) {
       return NextResponse.json({ ok: false, error: 'Enter a website URL.' }, { status: 400 });
     }
-    if (!fieldSlug) {
-      return NextResponse.json({ ok: false, error: 'Choose a field to compare against.' }, { status: 400 });
-    }
-
-    const field = await getFieldBySlug(fieldSlug);
-    if (!field) {
-      return NextResponse.json({ ok: false, error: `Field "${fieldSlug}" not found.` }, { status: 404 });
-    }
+    let field = fieldSlug ? await getFieldBySlug(fieldSlug) : null;
 
     // Score the submitted site with the full engine (real fetch + signals).
     const scored = await scoreSite(url, { skipPageSpeed: true });
@@ -42,6 +39,49 @@ export async function POST(req: Request) {
         },
         { status: 422 }
       );
+    }
+
+    // No field for this industry+location: build a suggested one from what we
+    // can detect from the site itself, then score against the closest real field.
+    let noFieldSuggestion = null;
+    if (!field) {
+      const fetched = await fetchSite(scored.finalUrl);
+      const html = fetched.html;
+      const detection = await detectFieldWithMeta(html);
+      const industry = guessIndustry(html);
+
+      const allFields = await listFields();
+      const detectedRegion = detection.detectedRegion;
+      const closest = allFields
+        .filter((f) => f.industry === (detection.fieldIndustry ?? industry.industry))
+        .sort((a, b) => {
+          const aMatch = detectedRegion && a.location.toLowerCase().includes(detectedRegion.toLowerCase()) ? 1 : 0;
+          const bMatch = detectedRegion && b.location.toLowerCase().includes(detectedRegion.toLowerCase()) ? 1 : 0;
+          return bMatch - aMatch;
+        })[0] ?? allFields[0];
+
+      if (closest) {
+        noFieldSuggestion = {
+          detectedIndustry: industry.industry,
+          detectedIndustryStrength: industry.strength,
+          detectedCity: detection.detectedCity,
+          detectedRegion,
+          locationSource: detection.locationSource,
+          suggestedFieldSlug: closest.slug,
+          suggestedFieldIndustry: closest.industry,
+          suggestedFieldLocation: closest.location,
+          message: `We don't have a ${industry.industry} field for ${detection.detectedCity ?? detectedRegion ?? 'your area'} yet. Showing you ${closest.industry} in ${closest.location} as the closest comparison.`,
+        };
+        field = closest;
+      }
+    }
+
+    if (!field) {
+      return NextResponse.json({
+        ok: false,
+        error: 'No fields configured. Build one first.',
+        noFields: true,
+      }, { status: 400 });
     }
 
     const siteRows = await getFieldSites(field.id);
@@ -64,7 +104,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, side, field });
+    return NextResponse.json({ ok: true, side, field, noFieldSuggestion });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : 'Scoring failed' },
