@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+interface FailingFinding {
+  label: string;
+  detail: string;
+  status: string;
+}
+
 interface Row {
   category: string;
   label: string;
@@ -12,6 +18,7 @@ interface Row {
   leader: number;
   delta: number;
   verdict: 'leading' | 'above' | 'below' | 'lagging';
+  failingFindings: FailingFinding[];
 }
 
 interface Recommendation {
@@ -51,6 +58,7 @@ function gradeColor(grade: string): string {
 export default function Results() {
   const [data, setData] = useState<Result | null>(null);
   const [missing, setMissing] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const raw = sessionStorage.getItem('vantage:result');
@@ -141,36 +149,62 @@ export default function Results() {
         </div>
         {rows.map((r) => {
           const v = VERDICT_STYLE[r.verdict] ?? VERDICT_STYLE.below;
+          const isOpen = expanded[r.category] ?? false;
+          const failing = (r as any).failingFindings as Array<{ label: string; detail: string; status: string }> | undefined;
+          const hasFindings = failing && failing.length > 0;
           return (
-            <div
-              key={r.category}
-              className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-4 py-3.5 border-b border-[#1c1c21] last:border-0 items-center"
-            >
-              <div className="min-w-0">
-                <p className="text-[14px] font-medium truncate">{r.label}</p>
-                <p className="text-[11px] font-semibold tracking-wide" style={{ color: v.color }}>
-                  {v.text}
-                  {r.delta !== 0 && (
-                    <span className="text-[#5a5a66] font-normal">
-                      {' '}
-                      {r.delta > 0 ? '+' : ''}
-                      {r.delta}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <span
-                className="w-9 text-right text-[15px] font-semibold tabular-nums"
-                style={{ color: v.color }}
+            <div key={r.category} className="border-b border-[#1c1c21] last:border-0">
+              <button
+                className="w-full grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-4 py-3.5 items-center text-left"
+                onClick={() => hasFindings && setExpanded((s) => ({ ...s, [r.category]: !isOpen }))}
+                disabled={!hasFindings}
               >
-                {r.you}
-              </span>
-              <span className="w-9 text-right text-[15px] text-[#8a8a96] tabular-nums">
-                {r.fieldAvg}
-              </span>
-              <span className="w-11 text-right text-[15px] text-[#5a5a66] tabular-nums">
-                {r.leader}
-              </span>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-medium truncate">{r.label}</p>
+                  <p className="text-[11px] font-semibold tracking-wide" style={{ color: v.color }}>
+                    {v.text}
+                    {r.delta !== 0 && (
+                      <span className="text-[#5a5a66] font-normal">
+                        {' '}
+                        {r.delta > 0 ? '+' : ''}
+                        {r.delta}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <span
+                  className="w-9 text-right text-[15px] font-semibold tabular-nums"
+                  style={{ color: v.color }}
+                >
+                  {r.you}
+                </span>
+                <span className="w-9 text-right text-[15px] text-[#8a8a96] tabular-nums">
+                  {r.fieldAvg}
+                </span>
+                <span className="w-11 text-right text-[15px] text-[#5a5a66] tabular-nums">
+                  {r.leader}
+                </span>
+              </button>
+              {isOpen && hasFindings && (
+                <div className="px-4 pb-3 space-y-2">
+                  {failing.map((f, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span
+                        className="shrink-0 w-1.5 h-1.5 rounded-full mt-1.5"
+                        style={{
+                          background: f.status === 'fail' ? '#f87171' : f.status === 'warn' ? '#fbbf24' : '#8a8a96',
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[13px] text-[#a0a0ac] leading-snug">{f.label}</p>
+                        {f.detail && (
+                          <p className="text-[12px] text-[#6a6a76] leading-snug mt-0.5">{f.detail}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -223,10 +257,10 @@ export default function Results() {
           window.location.href = '/glowup';
         }}
       >
-        Glow up this site
+        See what your site could look like
       </button>
       <Link href="/watch" className="btn-ghost">
-        Monitor it weekly — $49/mo
+        Monitor it weekly — $149/mo
       </Link>
     </main>
   );

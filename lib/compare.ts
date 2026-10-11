@@ -22,6 +22,7 @@ export interface ComparisonRow {
   leader: number;
   delta: number; // you - fieldAvg
   verdict: 'leading' | 'above' | 'below' | 'lagging';
+  failingFindings: Array<{ label: string; detail: string; status: string }>;
 }
 
 export interface Recommendation {
@@ -97,6 +98,9 @@ export function compareToField(you: SiteScore, field: FieldStats, peers: SiteSco
       leader,
       delta,
       verdict,
+      failingFindings: c.findings
+        .filter((f) => f.status === 'fail' || f.status === 'warn')
+        .map((f) => ({ label: f.label, detail: f.detail, status: f.status })),
     };
   });
 }
