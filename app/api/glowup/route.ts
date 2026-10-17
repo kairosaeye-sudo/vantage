@@ -15,6 +15,7 @@ import { recordFieldGap } from '@/lib/field-gaps';
 import { guessIndustry } from '@/lib/industry-guess';
 import { slugifyLocation } from '@/lib/location-detect';
 import { notifyDiscord, glowUpMessage } from '@/lib/notify';
+import { freePreviewExpiry, summariseFixes } from '@/lib/preview-access';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -411,7 +412,17 @@ export async function POST(req: Request) {
         files: record.files,
         createdAt: record.createdAt,
       },
-      plan: record.plan,
+      // The plan's itemised fixes are the Glow Up's to-do list; the free result
+      // says how many, where and what they are worth.
+      plan: {
+        fixes: [],
+        fixSummary: summariseFixes(record.plan.fixes),
+        fixCount: record.plan.fixes.length,
+        needsWork: record.plan.needsWork,
+        estimatedScore: record.plan.estimatedScore,
+        estimatedGain: record.plan.estimatedGain,
+      },
+      previewExpiresAt: freePreviewExpiry(new Date()).toISOString(),
       before: {
         overall: before.overall,
         grade: before.grade,
@@ -422,8 +433,10 @@ export async function POST(req: Request) {
         grade: after.grade,
         categories: after.categories.map((c) => ({ label: c.label, score: c.score })),
       },
-      /** The visual rebuild, when one was produced. */
-      redesign,
+      /** The visual rebuild, when one was produced — described, never shipped:
+       *  its HTML stays server-side and is only ever served through the
+       *  protected preview. */
+      redesign: redesign ? (({ html: _html, ...rest }) => rest)(redesign) : null,
       /** The rebuild scored through the same engine as `before`. */
       redesignScore,
       /** The field's measured scores, for ranking before / after. */

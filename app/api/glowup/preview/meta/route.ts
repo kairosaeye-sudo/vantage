@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPreview } from '@/lib/preview-store';
+import { freePreviewExpiry, isPreviewAdmin, summariseFixes } from '@/lib/preview-access';
 import { getFieldSites, listFields } from '@/lib/field-from-db';
 
 export const runtime = 'nodejs';
@@ -17,7 +18,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, error: 'id required' }, { status: 400 });
   }
 
-  const preview = await getPreview(id);
+  const admin = isPreviewAdmin(new URL(req.url).searchParams.get('key'));
+  const found = await getPreview(id);
+  const preview = found && (admin || freePreviewExpiry(found.createdAt) > new Date()) ? found : null;
   if (!preview) {
     return NextResponse.json({ ok: false, error: 'Preview not found or expired.' }, { status: 404 });
   }
@@ -55,7 +58,10 @@ export async function GET(req: Request) {
     afterScore: preview.afterScore,
     verifiedGain: preview.afterScore - preview.beforeScore,
     files: Object.keys(preview.files ?? {}),
-    fixes: preview.fixes ?? [],
+    // Itemised fixes only for the team; a free preview gets the summary.
+    fixes: admin ? preview.fixes ?? [] : [],
+    fixSummary: summariseFixes(preview.fixes ?? []),
+    expiresAt: freePreviewExpiry(preview.createdAt).toISOString(),
     redesign: preview.redesign ?? null,
     /** True when a third, redesigned view exists. */
     hasRedesign: Boolean(preview.redesigned),

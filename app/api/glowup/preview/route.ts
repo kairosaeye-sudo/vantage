@@ -1,4 +1,6 @@
 import { getPreview } from '@/lib/preview-store';
+import { protectFixed, protectRedesign } from '@/lib/preview-protect';
+import { freePreviewExpiry, isPreviewAdmin } from '@/lib/preview-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,7 +30,10 @@ export async function GET(req: Request) {
     return new Response('id required', { status: 400 });
   }
 
-  const preview = await getPreview(id);
+  const admin = isPreviewAdmin(params.get('key'));
+  const found = await getPreview(id);
+  // A free preview is held for a limited time; the team can always open one.
+  const preview = found && (admin || freePreviewExpiry(found.createdAt) > new Date()) ? found : null;
   if (!preview) {
     return new Response(
       `<!doctype html><meta charset="utf-8"><body style="font:14px system-ui;padding:24px;color:#888">
@@ -48,7 +53,23 @@ export async function GET(req: Request) {
     );
   }
 
-  const doc = makeRenderable(source ?? '', preview.url, side === 'after' && annotate);
+  // Free previews show the outcome, not the means — see lib/preview-protect.ts.
+  // The original site is the customer's own and is served as-is.
+  const name = (() => {
+    try {
+      return new URL(preview.url).hostname.replace(/^www\./, '');
+    } catch {
+      return 'Your site';
+    }
+  })();
+  const shown =
+    admin || side === 'before'
+      ? source ?? ''
+      : side === 'redesign'
+        ? protectRedesign(source ?? '', name)
+        : protectFixed(source ?? '', preview.before, name);
+
+  const doc = makeRenderable(shown, preview.url, side === 'after' && annotate);
 
   return new Response(doc, {
     status: 200,
@@ -58,6 +79,8 @@ export async function GET(req: Request) {
       'Cache-Control': 'no-store, max-age=0',
       // Defence in depth alongside the iframe sandbox.
       'X-Frame-Options': 'SAMEORIGIN',
+      // Previews are not pages to be found, cached or archived.
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
       'Content-Security-Policy': "default-src 'none'; img-src * data: blob:; style-src * 'unsafe-inline'; font-src * data:; frame-ancestors 'self'",
     },
   });

@@ -37,6 +37,9 @@ interface Meta {
   } | null;
   competitors: Competitor[];
   fieldDetected: boolean;
+  /** Free previews: fixes summarised by category instead of itemised. */
+  fixSummary?: Array<{ category: string; count: number; points: number }>;
+  expiresAt?: string;
 }
 
 const VIEW_LABEL: Record<View, string> = {
@@ -351,6 +354,36 @@ function PreviewInner() {
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Free preview: what the fixes are worth, not what they are */}
+            {visibleFixes.length === 0 && headFixes.length === 0 && (meta?.fixSummary?.length ?? 0) > 0 && (
+              <div className="p-4 border-b border-[#1c1c21]">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-[#5a5a66] mb-3">
+                  Technical Fixes ({meta!.fixSummary!.reduce((n, g) => n + g.count, 0)})
+                </h3>
+                <div className="space-y-2">
+                  {meta!.fixSummary!.map((g) => (
+                    <div key={g.category} className="p-3 rounded-lg border border-[#26262c] bg-[#121214]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-[#c9c9d2]">🔒 {g.category}</span>
+                        <span className="text-[11px] text-[#7c5cff] font-semibold">+{g.points}</span>
+                      </div>
+                      <p className="text-[11px] text-[#5a5a66] mt-1">
+                        {g.count} fix{g.count === 1 ? '' : 'es'} · itemised and installed with your Glow Up
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                {meta?.expiresAt && (
+                  <p className="text-[11px] text-[#5a5a66] mt-3">
+                    Preview held until {new Date(meta.expiresAt).toLocaleDateString()}.
+                  </p>
+                )}
+                <a href="/pricing" className="btn-primary mt-3 !py-2.5 text-[13px]">
+                  Glow up my site — $499
+                </a>
               </div>
             )}
 

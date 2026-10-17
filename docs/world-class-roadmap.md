@@ -114,6 +114,31 @@ two silent errors: the score fell back to whichever field was listed first
 and presented it as local. The home page also no longer pre-selects the first
 field, which had been bypassing detection for every visitor.
 
+## Free shows the outcome, the Glow Up delivers the means (fourth pass)
+
+The free score and glow-up exist to make the sale, not to make the sale
+unnecessary. The free user sees what their site would look like, what it would
+score and where it would rank; the code, copy and fixes are the Glow Up.
+
+| Leak found | Now |
+|---|---|
+| `/api/glowup` returned the full rebuilt page (`redesign.html`, ~47 KB) in its JSON — open the network tab and take it | Removed; the HTML never leaves the server except through the protected preview |
+| The redesign preview served the complete page: CSS, Vantage AI copy, JSON-LD, FAQ schema, title and meta | Served through `lib/preview-protect.ts`: schema and SEO head stripped, our copy replaced by skeletons with lock badges, links dead, watermark and ribbon, selection disabled |
+| The fixes-only view was the customer's page with every fix inserted and labelled — a ready-made patch | Original head restored (every head-level fix gone), injected copy redacted, labels genericised to "Fixed by Vantage" |
+| The itemised fix list ("Add a mobile viewport tag", …) in the API, results page and preview sidebar | Summarised by category: count and points, itemised with the Glow Up |
+| Previews lived forever | Free previews expire after 14 days ("held until …" shown as a deadline) |
+
+Redaction happens at serve time, so "view source" and "save page as" get the
+same skeleton the eye does, and the stored originals stay intact for scoring
+and delivery. The team can open any preview unprotected with
+`?key=$PREVIEW_ADMIN_KEY`.
+
+Deliberately still free: the diagnosis (what is wrong and what it costs) —
+that is the pain that sells — and the visual design itself. A determined
+developer can still copy the layout and CSS of the preview; making that
+airtight means serving the free preview as rendered images, which needs a
+headless browser in production and is on the roadmap.
+
 ## Roadmap — the ground-breaking features, in order
 
 **1. AI Answer Share across engines, tracked weekly (Watch).**

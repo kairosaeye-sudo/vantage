@@ -56,6 +56,9 @@ interface Result {
   };
   plan: {
     fixes: Fix[];
+    /** Free results get fixes summarised by category, not itemised. */
+    fixSummary?: Array<{ category: string; count: number; points: number }>;
+    fixCount?: number;
     needsWork: Array<{ findingId: string; label: string; category: string; reason: string }>;
     estimatedScore: number;
     estimatedGain: number;
@@ -74,6 +77,8 @@ interface Result {
     peers: Array<{ url: string; overall: number; where?: string }>;
   } | null;
   noFieldMessage: string | null;
+  /** When the free preview stops being viewable. */
+  previewExpiresAt?: string;
   /** Where the site says it is, detected from the page. */
   detectedLocation?: {
     city: string;
@@ -335,13 +340,34 @@ export default function GlowUp() {
 
         <div className="card p-5 mb-5" style={{ background: '#15121f', borderColor: '#7c5cff' }}>
           <p className="text-[16px] font-semibold mb-1.5">Make it your real site</p>
-          <p className="text-[13px] text-[#a0a0ac] leading-relaxed mb-4">
-            This is a free preview of your homepage. The Glow Up builds it out for real — every page, your
-            domain, the technical fixes below — and re-scores it so the gain is verified.
+          <p className="text-[13px] text-[#a0a0ac] leading-relaxed mb-3">
+            This is a preview. The Glow Up is the site itself — built, installed and re-scored so the gain
+            is verified, not promised.
           </p>
+          <ul className="space-y-1.5 mb-4">
+            {[
+              'Every page rebuilt, not just the homepage',
+              'All page copy written for you by Vantage AI',
+              `${plan.fixCount ?? plan.fixes.length} technical fixes installed and verified`,
+              'Schema, FAQ markup, sitemap, robots.txt and llms.txt',
+              'Installed on your domain — no code for you to touch',
+              'Re-scored against your field when it is live',
+            ].map((t) => (
+              <li key={t} className="flex gap-2 text-[13px] text-[#c9c9d2]">
+                <span className="text-[#b8a6ff]">✓</span>
+                {t}
+              </li>
+            ))}
+          </ul>
           <Link href="/pricing" className="btn-primary">
             Glow up my whole site — $499
           </Link>
+          {res.previewExpiresAt && (
+            <p className="text-[11px] text-[#8a8a96] mt-2 text-center">
+              Your free preview is held until{' '}
+              {new Date(res.previewExpiresAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}.
+            </p>
+          )}
         </div>
 
         {/* Location read from the site */}
@@ -538,24 +564,24 @@ export default function GlowUp() {
           })}
         </div>
 
-        {/* Applied */}
-        {plan.fixes.length > 0 && (
+        {/* What the fixes are worth — not what they are. The itemised list is
+            the Glow Up's to-do list, and a free result does not hand it over. */}
+        {(plan.fixSummary?.length ?? 0) > 0 && (
           <>
             <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
-              Fixes applied
+              {plan.fixCount} technical fixes found
             </h2>
-            <div className="space-y-2 mb-5">
-              {plan.fixes.map((f) => (
-                <div key={f.findingId} className="card p-3.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-[14px] font-medium leading-snug">{f.label}</span>
-                    <span className="text-[12px] text-[#7c5cff] font-semibold shrink-0">
-                      +{f.points}
-                    </span>
+            <div className="card mb-5 overflow-hidden">
+              {plan.fixSummary!.map((g) => (
+                <div key={g.category} className="flex items-center gap-3 px-4 py-3 border-b border-[#1c1c21] last:border-0">
+                  <span className="text-[14px]" aria-hidden="true">🔒</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium">{g.category}</p>
+                    <p className="text-[11px] text-[#5a5a66]">
+                      {g.count} fix{g.count === 1 ? '' : 'es'} · itemised and installed with your Glow Up
+                    </p>
                   </div>
-                  <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mt-1">
-                    {f.category}
-                  </p>
+                  <span className="text-[13px] font-semibold text-[#7c5cff] tabular-nums">+{g.points}</span>
                 </div>
               ))}
             </div>
@@ -586,10 +612,9 @@ export default function GlowUp() {
 
         {record.files.length > 0 && (
           <div className="card p-4 mb-5">
-            <p className="text-[13px] font-semibold mb-1">Also generated</p>
-            <p className="text-[12px] text-[#8a8a96] font-mono">
-              {record.files.join(' · ')}
-            </p>
+            <p className="text-[13px] font-semibold mb-1">🔒 Also built for you</p>
+            <p className="text-[12px] text-[#8a8a96] font-mono">{record.files.join(' · ')}</p>
+            <p className="text-[11px] text-[#5a5a66] mt-1.5">Generated for your site and installed with your Glow Up.</p>
           </div>
         )}
 
