@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import BeforeAfter from './BeforeAfter';
+import Leaderboard from '../components/Leaderboard';
 
 interface Fix {
   findingId: string;
@@ -62,6 +64,10 @@ interface Result {
   after: { overall: number; grade: string; categories: CatScore[] };
   redesign: RedesignInfo | null;
   redesignError: string | null;
+  /** The rebuild scored through the same engine as `before`. */
+  redesignScore?: { overall: number; categories: CatScore[] } | null;
+  /** The field's measured scores, for ranking before / after. */
+  fieldRank?: { label: string; peers: Array<{ url: string; overall: number }> } | null;
   noFieldMessage: string | null;
   /** Where the site says it is, detected from the page. */
   detectedLocation?: {
@@ -225,9 +231,109 @@ export default function GlowUp() {
   if (res) {
     const { record, before, after, plan } = res;
     const gained = record.verifiedGain;
+    const glow = res.redesignScore ?? null;
+    const peers = res.fieldRank?.peers ?? [];
+    const rankFor = (score: number) => 1 + peers.filter((p) => p.overall >= score).length;
+    const headlineScore = glow?.overall ?? after.overall;
+    const passed = peers.filter((p) => p.overall >= before.overall && p.overall < headlineScore);
+    const preview = (side: string) => `/api/glowup/preview?id=${encodeURIComponent(res.previewId ?? '')}&side=${side}`;
 
     return (
-      <main className="min-h-screen px-5 pt-10 pb-12 max-w-lg mx-auto">
+      <main className="min-h-screen px-5 pt-10 pb-12 max-w-2xl mx-auto">
+        {/* The reveal: their own site, rebuilt — before anything else */}
+        {res.redesign && res.previewId && (
+          <section className="mb-6">
+            <p className="text-[12px] uppercase tracking-wide text-[#b8a6ff] font-semibold mb-2">Your free glow-up</p>
+            <h1 className="text-[30px] leading-[1.1] font-bold tracking-tight mb-2">
+              {res.redesign.content.businessName}, rebuilt.
+            </h1>
+            <p className="text-[14px] text-[#8a8a96] leading-relaxed mb-5">
+              Your real services, reviews, photos and contact details — in a modern, mobile-first design.
+              Nothing invented.
+            </p>
+            <BeforeAfter beforeSrc={preview('before')} afterSrc={preview('redesign')} />
+            <a href={`/glowup/preview?id=${res.previewId}`} className="btn-primary mt-4">
+              Open the full interactive preview
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </a>
+          </section>
+        )}
+
+        {/* The jump, measured — and where it puts them in their field */}
+        <div className="card p-5 mb-5">
+          <div className="flex items-end gap-4 mb-1">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mb-1">Today</p>
+              <p className="text-[40px] font-bold leading-none text-[#8a8a96] tabular-nums">{before.overall}</p>
+            </div>
+            <span className="text-[24px] text-[#5a5a66] mb-1">→</span>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mb-1">{glow ? 'Glow-up' : 'Fixed'}</p>
+              <p className="text-[40px] font-bold leading-none text-[#4ade80] tabular-nums">{headlineScore}</p>
+            </div>
+            <p className="ml-auto text-[26px] font-bold text-[#4ade80] mb-1 tabular-nums">
+              {headlineScore - before.overall > 0 ? '+' : ''}
+              {headlineScore - before.overall}
+            </p>
+          </div>
+          {peers.length > 0 && (
+            <>
+              <p className="text-[15px] text-white font-semibold mt-4 leading-snug">
+                From #{rankFor(before.overall)} to #{rankFor(headlineScore)} of {peers.length + 1}{' '}
+                {res.fieldRank!.label}
+                {passed.length > 0 && <span className="text-[#4ade80]"> — passing {passed.length} competitor{passed.length === 1 ? '' : 's'}</span>}.
+              </p>
+              <div className="mt-4">
+                <Leaderboard
+                  peers={peers}
+                  marks={[
+                    { label: 'You today', score: before.overall, tone: 'dim' },
+                    { label: glow ? 'You, glowed up' : 'You, fixed', score: headlineScore, tone: 'glow' },
+                  ]}
+                />
+              </div>
+            </>
+          )}
+          <p className="text-[11px] text-[#5a5a66] leading-relaxed mt-4">
+            Measured by re-scoring the rebuilt page through the same engine as your site and your field — not
+            an estimate. PageSpeed is off for every score here, so the comparison is like for like.
+          </p>
+        </div>
+
+        {/* What changed, in plain words */}
+        {res.redesign && res.redesign.changes.length > 0 && (
+          <>
+            <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
+              What we changed
+            </h2>
+            <div className="card mb-5 overflow-hidden">
+              {res.redesign.changes.slice(0, 10).map((c) => (
+                <div key={c.label} className="flex gap-3 px-4 py-3 border-b border-[#1c1c21] last:border-0">
+                  <span className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-[#1a1428] text-[#b8a6ff] text-[11px] flex items-center justify-center">✓</span>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-medium leading-snug">{c.label}</p>
+                    <p className="text-[12px] text-[#6a6a76] leading-relaxed mt-0.5">{c.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="card p-5 mb-5" style={{ background: '#15121f', borderColor: '#7c5cff' }}>
+          <p className="text-[16px] font-semibold mb-1.5">Make it your real site</p>
+          <p className="text-[13px] text-[#a0a0ac] leading-relaxed mb-4">
+            This is a free preview of your homepage. The Glow Up builds it out for real — every page, your
+            domain, the technical fixes below — and re-scores it so the gain is verified.
+          </p>
+          <Link href="/pricing" className="btn-primary">
+            Glow up my whole site — $499
+          </Link>
+        </div>
+
         {/* Location read from the site */}
         {res.detectedLocation && (
           <div className="card p-4 mb-5" style={{ background: '#101a14', borderColor: '#2a5a3a' }}>
@@ -263,7 +369,7 @@ export default function GlowUp() {
         {/* Verified result */}
         <div className="card p-6 mb-5">
           <p className="text-[11px] uppercase tracking-wide text-[#5a5a66] mb-3">
-            Verified result
+            {res.redesign ? 'Keeping your current design? Fixes alone' : 'Verified result'}
           </p>
           <div className="flex items-center gap-4 mb-3">
             <div>
@@ -300,7 +406,7 @@ export default function GlowUp() {
             different figure for the same site.
           </p>
 
-          {res.previewId && (
+          {res.previewId && !res.redesign && (
             <a
               href={`/glowup/preview?id=${res.previewId}`}
               className="btn-primary mt-4"
@@ -484,7 +590,7 @@ export default function GlowUp() {
             next round of fixes.
           </p>
           <Link href="/watch" className="btn-primary">
-            Start monitoring — $49/mo
+            Start monitoring — $149/mo
           </Link>
         </div>
 

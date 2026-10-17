@@ -6,6 +6,7 @@ import {
   enhanceWithAi,
   providerFromEnv,
   countWords,
+  smartCut,
   type EnhancedCopy,
   type FactSheet,
 } from './ai-copy';
@@ -198,6 +199,80 @@ function collectPreserved(html: string, finalUrl: string): PreservedSignals {
   };
 }
 
+/* ---------------- Icons ---------------- */
+
+const svg = (d: string) =>
+  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+
+const ICON = {
+  phone: svg('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>'),
+  mail: svg('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>'),
+  pin: svg('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>'),
+  check: svg('<path d="M20 6 9 17l-5-5"/>'),
+  bolt: svg('<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>'),
+  plug: svg('<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/>'),
+  bulb: svg('<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.1 14c.2-1 .7-1.7 1.4-2.5A4.6 4.6 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>'),
+  alert: svg('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/>'),
+  battery: svg('<rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><path d="m11 9-2 3h3l-2 3"/>'),
+  cable: svg('<path d="M4 9a2 2 0 0 1-2-2V5h6v2a2 2 0 0 1-2 2z"/><path d="M3 5V3"/><path d="M7 5V3"/><path d="M5 9v6a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4V9"/><path d="M19 9a2 2 0 0 1-2-2V5h6v2a2 2 0 0 1-2 2z"/>'),
+  drop: svg('<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 0 0 7 7z"/>'),
+  home: svg('<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>'),
+  thermo: svg('<path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z"/>'),
+  shield: svg('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  tooth: svg('<path d="M7 3c-2.2 0-4 1.8-4 4.5 0 3 1.5 5 2 8.5.3 2.5 1 5 2.5 5s1.8-3 2.5-5.5c.3-1 .8-1.5 2-1.5s1.7.5 2 1.5c.7 2.5 1 5.5 2.5 5.5s2.2-2.5 2.5-5c.5-3.5 2-5.5 2-8.5C21 4.8 19.2 3 17 3c-2 0-3 1-5 1S9 3 7 3z"/>'),
+  wrench: svg('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>'),
+};
+
+/** Pick an icon from what the service is called. Generic wrench when unsure. */
+function iconFor(service: string): string {
+  const s = service.toLowerCase();
+  if (/emergenc|24\/7|urgent/.test(s)) return ICON.alert;
+  if (/\bev\b|charg|tesla|outlet|plug/.test(s)) return ICON.plug;
+  if (/light|lamp|fixture/.test(s)) return ICON.bulb;
+  if (/generator|backup|battery/.test(s)) return ICON.battery;
+  if (/wir|rewir|cable/.test(s)) return ICON.cable;
+  if (/panel|breaker|electric|surge|power/.test(s)) return ICON.bolt;
+  if (/plumb|drain|water|pipe|leak|sewer/.test(s)) return ICON.drop;
+  if (/hvac|heat|cool|\bair\b|furnace|\bac\b/.test(s)) return ICON.thermo;
+  if (/solar/.test(s)) return ICON.sun;
+  if (/dent|teeth|tooth|implant|orthodont|whiten/.test(s)) return ICON.tooth;
+  if (/inspect|safety|insur|protect/.test(s)) return ICON.shield;
+  if (/home|remodel|roof|house/.test(s)) return ICON.home;
+  return ICON.wrench;
+}
+
+/** The services heading in the trade's own word: "Electrical services in Austin". */
+function servicesHeading(noun: string | null, city: string | null): string {
+  const trade: Record<string, string> = {
+    electricians: 'Electrical services',
+    plumbers: 'Plumbing services',
+    'HVAC technicians': 'Heating & cooling services',
+    roofers: 'Roofing services',
+    landscapers: 'Landscaping services',
+    dentists: 'Dental services',
+    chiropractors: 'Chiropractic care',
+    attorneys: 'Legal services',
+    accountants: 'Accounting services',
+    veterinarians: 'Veterinary services',
+    painters: 'Painting services',
+    mechanics: 'Auto repair services',
+    cleaners: 'Cleaning services',
+  };
+  const base = (noun && trade[noun]) || 'Our services';
+  return city ? `${base} in ${city}` : base;
+}
+
+/** "electricians" → "an electrician", "dentists" → "a dentist". */
+function withArticle(plural: string): string {
+  const one = plural.replace(/ies$/, 'y').replace(/s$/, '');
+  return `${/^([aeiou]|hvac)/i.test(one) ? 'an' : 'a'} ${one}`;
+}
+
+function join(xs: string[]): string {
+  return xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+
 /** Initials for the brand mark when there is no logo. */
 function initials(name: string): string {
   const words = name.split(/\s+/).filter((w) => /[a-z]/i.test(w));
@@ -265,7 +340,8 @@ export async function buildRedesign(
 
   const city = (() => {
     const t = clean($orig('body').text());
-    const m = t.match(/\b(?:in|serving|around)\s+([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+)?)/);
+    // "serving the Austin area" is as common as "serving Austin".
+    const m = t.match(/\b(?:in|serving|around)\s+(?:the\s+)?([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+)?)(?=[\s,.]|$)/);
     if (m) return m[1];
     const meta = clean($orig('meta[name="description"]').attr('content') ?? '');
     const m2 = meta.match(/\b(?:in|serving)\s+([A-Z][A-Za-z.'-]+)/);
@@ -420,27 +496,115 @@ export async function buildRedesign(
 
   /* ---------------- Sections ---------------- */
 
-  const navItems = preserved.navLinks.slice(0, 6);
+  const navItems = preserved.navLinks.filter((n) => !facts.services.includes(n.text)).slice(0, 6);
+  const telHref = facts.phone ? `tel:+1${facts.phone.replace(/\D/g, '')}` : null;
+  const cred = facts.credentials;
+  const noun = facts.industry;
+  const areas = facts.serviceAreas.length ? facts.serviceAreas : city ? [city] : [];
+
+  // Photos: the hero takes the first; services claim the ones whose alt text
+  // names them; the rest become the gallery. No stock imagery, ever.
+  const heroImage = images[0] ?? null;
+  const unclaimed = images.slice(1);
+  const claim = (service: string): { src: string; alt: string } | null => {
+    const words = service.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^(and|the|for|installation|install|repair|services?)$/.test(w));
+    const i = unclaimed.findIndex((img) => words.some((w) => img.alt.toLowerCase().includes(w)));
+    return i === -1 ? null : unclaimed.splice(i, 1)[0];
+  };
+  const servicePhotos: Record<string, { src: string; alt: string } | null> = {};
+  for (const s of facts.services) servicePhotos[s] = claim(s);
+  const aboutImage = unclaimed.shift() ?? null;
+  const gallery = unclaimed.slice(0, 6);
+
+  // Headline: their own H1 when it says something, a grounded one when it does
+  // not. "Welcome to …" and the bare business name say nothing.
+  const headlineText = (() => {
+    if (copy.headline && copy.headline.length <= 90) return copy.headline;
+    const weak = !headline || /^(welcome|home|hello|hi)\b/i.test(headline) || headline.toLowerCase() === businessName.toLowerCase();
+    if (!weak && headline!.length <= 90) return headline!;
+    if (noun && city) {
+      const adj = cred.licensedInsured ? 'Licensed & insured ' : cred.familyOwned ? 'Family-owned ' : '';
+      const n = adj ? noun : noun.replace(/^\w/, (c) => c.toUpperCase());
+      return `${adj}${n} in ${city}`;
+    }
+    return headline ?? businessName;
+  })();
+
+  const chips = [
+    cred.since ? `Since ${cred.since}` : '',
+    cred.licensedInsured ? 'Licensed & insured' : '',
+    cred.emergency ? '24/7 emergency service' : '',
+    cred.familyOwned ? 'Family-owned' : '',
+    cred.license ? cred.license : '',
+  ].filter(Boolean).slice(0, 4);
+
+  const featured = facts.testimonials[0] ?? null;
+
+  const heroSection = `
+  <section class="hero ${heroImage ? 'hero-photo' : 'hero-plain'}">
+    ${heroImage ? `<div class="hero-bg"><img src="${esc(heroImage.src)}" alt="${esc(heroImage.alt || businessName)}" loading="eager" fetchpriority="high" width="1600" height="1000"></div>` : ''}
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">${esc([noun ? noun.replace(/^\w/, (c) => c.toUpperCase()) : businessName, city].filter(Boolean).join(' · '))}</p>
+        <h1>${esc(headlineText)}</h1>
+        ${copy.heroLede ? `<p class="lede">${esc(smartCut(copy.heroLede, 230))}</p>` : ''}
+        <div class="hero-actions">
+          ${telHref ? `<a class="btn btn-primary btn-lg" href="${telHref}">${ICON.phone}Call ${esc(facts.phone!)}</a>` : ''}
+          <a class="btn btn-glass btn-lg" href="#contact">Request a quote</a>
+          ${preserved.bookingUrl ? `<a class="btn btn-glass btn-lg" href="${esc(preserved.bookingUrl)}" rel="noopener">Book online</a>` : ''}
+        </div>
+        ${chips.length ? `<ul class="chips" aria-label="Credentials">${chips.map((c) => `<li>${ICON.check}${esc(c)}</li>`).join('')}</ul>` : ''}
+      </div>
+      ${
+        featured
+          ? `<figure class="hero-review">
+        <div class="quote-mark" aria-hidden="true">“</div>
+        <blockquote>${esc(smartCut(featured.quote, 170))}</blockquote>
+        ${featured.author ? `<figcaption>${esc(featured.author)}</figcaption>` : ''}
+        ${facts.testimonials.length > 1 ? `<a href="#reviews">Read ${facts.testimonials.length} reviews →</a>` : ''}
+      </figure>`
+          : ''
+      }
+    </div>
+  </section>`;
+  if (!heroImage) needsFromClient.push('A photo of your team or your work for the top of the page');
+
+  // Facts band — every figure is something the site states.
+  const stats = [
+    cred.since ? { big: String(cred.since), small: 'In business since' } : null,
+    facts.services.length >= 2 ? { big: String(facts.services.length), small: 'Services offered' } : null,
+    areas.length >= 2 ? { big: String(areas.length), small: 'Areas served' } : null,
+    cred.emergency ? { big: '24/7', small: 'Emergency service' } : null,
+    facts.testimonials.length ? { big: String(facts.testimonials.length), small: 'Customer reviews' } : null,
+  ].filter((x): x is { big: string; small: string } => x !== null).slice(0, 4);
+  const statsSection = stats.length >= 2
+    ? `<section class="stats" aria-label="At a glance"><div class="wrap"><div class="stats-grid" style="--n:${stats.length}">${stats
+        .map((s) => `<div class="stat"><b>${esc(s.big)}</b><span>${esc(s.small)}</span></div>`)
+        .join('')}</div></div></section>`
+    : '';
 
   const servicesSection =
     facts.services.length > 0
       ? `
-      <section id="services" aria-labelledby="services-h">
+      <section id="services" aria-labelledby="services-h" class="reveal">
         <div class="wrap">
           <div class="section-head">
             <p class="eyebrow">What we do</p>
-            <h2 id="services-h">Services</h2>
+            <h2 id="services-h">${esc(servicesHeading(noun, city))}</h2>
           </div>
           <div class="grid grid-3">
             ${facts.services
-              .map(
-                (s) => `
-              <article class="card">
-                <div class="card-icon" aria-hidden="true">${esc(s.slice(0, 1).toUpperCase())}</div>
+              .map((s) => {
+                const photo = servicePhotos[s];
+                const link = facts.serviceLinks[s];
+                return `
+              <article class="card service${photo ? ' has-photo' : ''}">
+                ${photo ? `<div class="service-photo"><img src="${esc(photo.src)}" alt="${esc(photo.alt)}" loading="lazy" width="800" height="500"></div>` : `<div class="card-icon" aria-hidden="true">${iconFor(s)}</div>`}
                 <h3>${esc(s)}</h3>
                 ${copy.serviceDescriptions[s] ? `<p>${esc(copy.serviceDescriptions[s])}</p>` : ''}
-              </article>`
-              )
+                ${link ? `<a class="more" href="${esc(link)}">Learn about ${esc(s.toLowerCase())} →</a>` : ''}
+              </article>`;
+              })
               .join('')}
           </div>
         </div>
@@ -449,7 +613,7 @@ export async function buildRedesign(
   if (facts.services.length > 0) {
     changes.push({
       label: 'Rebuilt services into a card grid',
-      detail: `The ${facts.services.length} services read from your site now sit in a responsive grid with a description each, instead of plain text.`,
+      detail: `The ${facts.services.length} services read from your site now sit in a responsive grid with a description each${Object.values(servicePhotos).some(Boolean) ? ', paired with your own photos of that work' : ''}${Object.keys(facts.serviceLinks).length ? ', and each links to its page on your site' : ''}.`,
       kind: 'layout',
     });
   } else {
@@ -457,18 +621,28 @@ export async function buildRedesign(
     needsFromClient.push('A list of the services you offer');
   }
 
+  const credList = [
+    cred.licensedInsured ? 'Licensed and insured' : '',
+    cred.license ? `Licence ${cred.license}` : '',
+    cred.familyOwned ? 'Family-owned' : '',
+    cred.since ? `Serving customers since ${cred.since}` : '',
+    cred.emergency ? 'Emergency service available' : '',
+  ].filter(Boolean);
+
   const aboutSection =
     copy.aboutParagraphs.length > 0
       ? `
-      <section id="about" aria-labelledby="about-h">
+      <section id="about" aria-labelledby="about-h" class="reveal">
         <div class="wrap">
-          <div class="about-grid">
+          <div class="about-grid${aboutImage ? ' with-photo' : ''}">
+            ${aboutImage ? `<div class="about-photo"><img src="${esc(aboutImage.src)}" alt="${esc(aboutImage.alt || businessName)}" loading="lazy" width="900" height="1100"></div>` : ''}
             <div>
-              <p class="eyebrow">About</p>
-              <h2 id="about-h">${city ? `Serving ${esc(city)} and nearby` : 'About us'}</h2>
-            </div>
-            <div class="about-body">
-              ${copy.aboutParagraphs.map((t) => `<p>${esc(t)}</p>`).join('')}
+              <p class="eyebrow">About ${esc(businessName)}</p>
+              <h2 id="about-h">${city ? `Serving ${esc(join(areas.slice(0, 3)) || city)}` : 'About us'}</h2>
+              <div class="about-body">
+                ${copy.aboutParagraphs.map((t) => `<p>${esc(t)}</p>`).join('')}
+              </div>
+              ${credList.length ? `<ul class="checks">${credList.map((c) => `<li>${ICON.check}${esc(c)}</li>`).join('')}</ul>` : ''}
             </div>
           </div>
         </div>
@@ -488,10 +662,29 @@ export async function buildRedesign(
     needsFromClient.push('A short paragraph about your business');
   }
 
+  const gallerySection =
+    gallery.length >= 2
+      ? `
+      <section id="work" aria-labelledby="work-h" class="reveal">
+        <div class="wrap">
+          <div class="section-head">
+            <p class="eyebrow">Our work</p>
+            <h2 id="work-h">Recent work</h2>
+          </div>
+          <div class="gallery">
+            ${gallery.map((g) => `<figure><img src="${esc(g.src)}" alt="${esc(g.alt || businessName)}" loading="lazy" width="800" height="600">${g.alt ? `<figcaption>${esc(g.alt)}</figcaption>` : ''}</figure>`).join('')}
+          </div>
+        </div>
+      </section>`
+      : '';
+  if (gallerySection) {
+    changes.push({ label: 'Gave your photos a gallery', detail: `${gallery.length} photos from your site in a responsive gallery, captioned with your own descriptions.`, kind: 'layout' });
+  }
+
   const testimonialsSection =
     facts.testimonials.length > 0
       ? `
-      <section id="reviews" aria-labelledby="reviews-h">
+      <section id="reviews" aria-labelledby="reviews-h" class="reveal tinted">
         <div class="wrap">
           <div class="section-head">
             <p class="eyebrow">Reviews</p>
@@ -502,8 +695,9 @@ export async function buildRedesign(
               .map(
                 (t) => `
               <figure class="quote">
+                <div class="quote-mark" aria-hidden="true">“</div>
                 <blockquote>${esc(t.quote)}</blockquote>
-                ${t.author ? `<figcaption>${esc(t.author)}</figcaption>` : ''}
+                ${t.author ? `<figcaption><span class="avatar" aria-hidden="true">${esc(initials(t.author))}</span>${esc(t.author)}</figcaption>` : ''}
               </figure>`
               )
               .join('')}
@@ -514,7 +708,7 @@ export async function buildRedesign(
   if (facts.testimonials.length > 0) {
     changes.push({
       label: 'Brought your real reviews onto the page',
-      detail: `${facts.testimonials.length} testimonial${facts.testimonials.length === 1 ? '' : 's'} found on your site, given proper quote styling. Unaltered.`,
+      detail: `${facts.testimonials.length} testimonial${facts.testimonials.length === 1 ? '' : 's'} found on your site — one featured at the top of the page, all given proper quote styling. Word for word, unaltered.`,
       kind: 'content',
     });
   } else {
@@ -522,10 +716,27 @@ export async function buildRedesign(
     needsFromClient.push('Two or three customer reviews you can share');
   }
 
+  const areasSection =
+    areas.length >= 2
+      ? `
+      <section id="areas" aria-labelledby="areas-h" class="reveal">
+        <div class="wrap areas">
+          <div>
+            <p class="eyebrow">Service area</p>
+            <h2 id="areas-h">Where we work</h2>
+          </div>
+          <ul class="area-chips">${areas.map((a) => `<li>${ICON.pin}${esc(a)}</li>`).join('')}</ul>
+        </div>
+      </section>`
+      : '';
+  if (areasSection) {
+    changes.push({ label: 'Listed the areas you serve', detail: `${areas.length} towns named on your site, shown as a service-area list — what local searchers and AI assistants look for.`, kind: 'seo' });
+  }
+
   const extraSections = copy.extraSections
     .map(
       (s, i) => `
-      <section aria-labelledby="x-${i}">
+      <section aria-labelledby="x-${i}" class="reveal">
         <div class="wrap">
           <div class="section-head">
             <h2 id="x-${i}">${esc(s.heading)}</h2>
@@ -538,49 +749,17 @@ export async function buildRedesign(
     )
     .join('');
 
-  const hoursRows =
-    facts.hours.length > 0
-      ? facts.hours
-          .map((h) => {
-            const m = h.match(/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\s*(.*)$/i);
-            const dayMap: Record<string, string> = {
-              mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
-              fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
-            };
-            if (m) {
-              const day = dayMap[m[1].toLowerCase().slice(0, 3)];
-              const val = m[2].replace(/^[:\-–\s]+/, '').trim();
-              if (day && val) return `<tr><th scope="row">${esc(day)}</th><td>${esc(val)}</td></tr>`;
-            }
-            return `<tr><td colspan="2">${esc(h)}</td></tr>`;
-          })
-          .join('')
-      : '';
-  const hoursSection = hoursRows
-    ? `
-      <section id="hours" aria-labelledby="hours-h">
-        <div class="wrap">
-          <div class="section-head">
-            <p class="eyebrow">When to reach us</p>
-            <h2 id="hours-h">Opening hours</h2>
-          </div>
-          <table class="hours"><tbody>${hoursRows}</tbody></table>
-        </div>
-      </section>`
-    : `
-      <section id="hours" aria-labelledby="hours-h">
-        <div class="wrap">
-          <div class="section-head">
-            <p class="eyebrow">When to reach us</p>
-            <h2 id="hours-h">Opening hours</h2>
-          </div>
-          <p class="lede">
-            Our published hours are not listed here yet. Call ${
-              facts.phone ? esc(facts.phone) : 'us'
-            } to check availability, or send a message and we will reply with a time.
-          </p>
-        </div>
-      </section>`;
+  const dayMap: Record<string, string> = {
+    mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
+  };
+  const hoursRows = facts.hours
+    .map((h) => {
+      const m = h.match(/^((?:mon|tue|wed|thu|fri|sat|sun)[a-z]*(?:\s*(?:-|–|—|to|through|thru|&|and)\s*(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*)?)\s*[:\-–]?\s*(.+)$/i);
+      if (!m) return `<tr><td colspan="2">${esc(h)}</td></tr>`;
+      const days = m[1].replace(/\b(mon|tue|wed|thu|fri|sat|sun)[a-z]*/gi, (d) => dayMap[d.slice(0, 3).toLowerCase()] ?? d).replace(/\s*(-|–|—|to|through|thru)\s*/i, ' – ');
+      return `<tr><th scope="row">${esc(days)}</th><td>${esc(m[2])}</td></tr>`;
+    })
+    .join('');
   if (facts.hours.length > 0) {
     changes.push({
       label: 'Published your opening hours as a table',
@@ -591,43 +770,8 @@ export async function buildRedesign(
     needsFromClient.push('Your opening hours');
   }
 
-  // Booking: preserve the original's booking path. When there is none, state the
-  // phone-first route plainly — never imply a booking system that does not exist.
-  const bookingSection = preserved.bookingUrl
-    ? `
-      <section id="book" aria-labelledby="book-h">
-        <div class="wrap">
-          <div class="cta-band" style="text-align:left">
-            <h2 id="book-h">Book online</h2>
-            <p>Use our booking system to pick a time that suits you.</p>
-            <div class="hero-actions" style="margin-top:0">
-              <a class="btn btn-primary" href="${esc(preserved.bookingUrl)}" rel="noopener">Book online</a>
-              ${facts.phone ? `<a class="btn btn-ghost" href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">Or call ${esc(facts.phone)}</a>` : ''}
-            </div>
-          </div>
-        </div>
-      </section>`
-    : `
-      <section id="book" aria-labelledby="book-h">
-        <div class="wrap">
-          <div class="section-head">
-            <p class="eyebrow">Booking</p>
-            <h2 id="book-h">Schedule an appointment</h2>
-          </div>
-          <p class="lede">
-            ${
-              facts.phone
-                ? `Call ${esc(facts.phone)} to schedule an appointment.`
-                : 'Get in touch to schedule an appointment.'
-            }
-            Tell us what the job involves and when suits you, and we will confirm a time.
-          </p>
-          <div class="hero-actions">
-            ${facts.phone ? `<a class="btn btn-primary" href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">Call to schedule</a>` : ''}
-            <a class="btn btn-ghost" href="#contact">Request an appointment</a>
-          </div>
-        </div>
-      </section>`;
+  // Booking: preserve the original's booking path. When there is none, offer the
+  // form as the way to request an appointment — never imply a booking system.
   if (preserved.bookingUrl) {
     changes.push({
       label: 'Kept your online booking',
@@ -639,34 +783,39 @@ export async function buildRedesign(
   }
 
   const contactSection = `
-      <section id="contact" aria-labelledby="contact-h">
+      <section id="contact" aria-labelledby="contact-h" class="reveal tinted">
         <div class="wrap">
-          <div class="grid grid-2" style="gap:clamp(28px,4vw,52px);align-items:start">
+          <div class="contact-grid">
             <div>
               <p class="eyebrow">Get in touch</p>
               <h2 id="contact-h">Request a quote</h2>
-              <p class="lede" style="margin-top:14px">Tell us what you need and we will get back to you.</p>
-              <ul class="info-list" style="margin-top:26px">
-                ${facts.phone ? `<li><span aria-hidden="true">☎</span><span><b>Phone</b><a href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">${esc(facts.phone)}</a></span></li>` : ''}
-                ${facts.email ? `<li><span aria-hidden="true">✉</span><span><b>Email</b><a href="mailto:${esc(facts.email)}">${esc(facts.email)}</a></span></li>` : ''}
-                ${facts.address ? `<li><span aria-hidden="true">⌖</span><span><b>Address</b>${esc(facts.address)}</span></li>` : ''}
+              <p class="lede" style="margin-top:14px">Tell us what you need, or use the form to request an appointment.</p>
+              <ul class="info-list">
+                ${facts.phone ? `<li><span class="info-icon" aria-hidden="true">${ICON.phone}</span><span><b>Phone</b><a href="${telHref}">${esc(facts.phone)}</a></span></li>` : ''}
+                ${facts.email ? `<li><span class="info-icon" aria-hidden="true">${ICON.mail}</span><span><b>Email</b><a href="mailto:${esc(facts.email)}">${esc(facts.email)}</a></span></li>` : ''}
+                ${facts.address ? `<li><span class="info-icon" aria-hidden="true">${ICON.pin}</span><span><b>Address</b>${esc(facts.address)}</span></li>` : ''}
               </ul>
+              ${hoursRows ? `<div class="hours-card" id="hours"><b>Opening hours</b><table class="hours"><tbody>${hoursRows}</tbody></table>${cred.emergency ? '<p class="note">Emergency service available — call any time.</p>' : ''}</div>` : ''}
+              ${preserved.bookingUrl ? `<a class="btn btn-ghost" style="margin-top:20px" href="${esc(preserved.bookingUrl)}" rel="noopener">Book online</a>` : ''}
             </div>
-            <form class="card" method="post" action="#contact" novalidate>
+            <form class="card form-card" method="post" action="#contact" novalidate>
               <div class="form-grid">
                 <div class="field"><label for="f-name">Name</label><input id="f-name" name="name" type="text" autocomplete="name" required></div>
                 <div class="field"><label for="f-phone">Phone</label><input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
                 <div class="field full"><label for="f-email">Email</label><input id="f-email" name="email" type="email" inputmode="email" autocomplete="email" required></div>
-                <div class="field full"><label for="f-msg">How can we help?</label><textarea id="f-msg" name="message" required></textarea></div>
-                <div class="full"><button class="btn btn-primary" type="submit">Send request</button></div>
+                ${facts.services.length ? `<div class="field full"><label for="f-svc">What do you need?</label><select id="f-svc" name="service"><option value="">Choose a service</option>${facts.services.map((s) => `<option>${esc(s)}</option>`).join('')}<option>Something else</option></select></div>` : ''}
+                <div class="field full"><label for="f-msg">Tell us about the job</label><textarea id="f-msg" name="message" required></textarea></div>
+                <div class="full"><button class="btn btn-primary btn-lg" type="submit" style="width:100%">Send request</button></div>
               </div>
             </form>
           </div>
         </div>
       </section>`;
   changes.push({
-    label: 'Added a working contact form',
-    detail: 'The original page had no way to get in touch except a phone number. This adds a form with proper labels, mobile keyboards and 16px inputs so phones do not zoom on focus.',
+    label: signals.formCount > 0 ? 'Rebuilt your contact form' : 'Added a working contact form',
+    detail:
+      (signals.formCount > 0 ? 'Your form now ' : 'The original page had no form. This one ') +
+      `has proper labels${facts.services.length ? ', a menu of your services' : ''}, mobile keyboards and 16px inputs so phones do not zoom on focus.`,
     kind: 'structure',
   });
   if (!facts.phone) needsFromClient.push('Your phone number');
@@ -675,12 +824,13 @@ export async function buildRedesign(
   const faqSection =
     copy.faqs.length >= 2
       ? `
-      <section id="faq" aria-labelledby="faq-h">
-        <div class="wrap">
+      <section id="faq" aria-labelledby="faq-h" class="reveal">
+        <div class="wrap faq-wrap">
           <div class="section-head">
             <p class="eyebrow">Questions</p>
             <h2 id="faq-h">Frequently asked questions</h2>
           </div>
+          <div>
           ${copy.faqs
             .map(
               (f) => `
@@ -690,6 +840,7 @@ export async function buildRedesign(
           </details>`
             )
             .join('')}
+          </div>
         </div>
       </section>`
       : '';
@@ -709,10 +860,13 @@ export async function buildRedesign(
     name: businessName,
     url: finalUrl,
   };
+  if (heroImage) ld.image = heroImage.src;
   if (facts.phone) ld.telephone = facts.phone;
   if (facts.email) ld.email = facts.email;
   if (facts.address) ld.address = { '@type': 'PostalAddress', streetAddress: facts.address };
   if (facts.hours.length) ld.openingHours = facts.hours;
+  if (areas.length) ld.areaServed = areas.map((a) => ({ '@type': 'City', name: a }));
+  if (cred.since) ld.foundingDate = String(cred.since);
   if (facts.services.length) {
     ld.hasOfferCatalog = {
       '@type': 'OfferCatalog',
@@ -722,6 +876,11 @@ export async function buildRedesign(
         itemOffered: { '@type': 'Service', name: s, description: copy.serviceDescriptions[s] },
       })),
     };
+  }
+  if (facts.testimonials.length) {
+    ld.review = facts.testimonials
+      .filter((t) => t.author)
+      .map((t) => ({ '@type': 'Review', reviewBody: t.quote, author: { '@type': 'Person', name: t.author } }));
   }
   if (preserved.socialLinks.length) ld.sameAs = preserved.socialLinks.map((s) => s.href);
 
@@ -753,15 +912,15 @@ export async function buildRedesign(
             ? `<nav class="site-nav" aria-label="Main">${navItems
                 .map((n) => {
                   const slug = n.text.toLowerCase().replace(/[^a-z]/g, '');
-                  const anchor = ['about', 'services', 'contact', 'reviews', 'hours', 'faq'].includes(slug)
-                    ? `#${slug}`
+                  const anchor = ['about', 'aboutus', 'services', 'contact', 'contactus', 'reviews', 'hours', 'faq'].includes(slug)
+                    ? `#${slug.replace(/us$/, '')}`
                     : n.href;
                   return `<a href="${esc(anchor)}">${esc(n.text)}</a>`;
                 })
                 .join('')}</nav>`
             : ''
         }
-        ${facts.phone ? `<a class="btn btn-primary header-cta" href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">Call ${esc(facts.phone)}</a>` : ''}
+        ${telHref ? `<a class="btn btn-primary header-cta" href="${telHref}">${ICON.phone}${esc(facts.phone!)}</a>` : ''}
       </div>
     </header>`;
 
@@ -775,8 +934,8 @@ export async function buildRedesign(
         <div class="footer-grid">
           <div>
             <h4>${esc(businessName)}</h4>
-            ${copy.heroLede ? `<p style="color:var(--muted);font-size:.95rem;margin:0 0 16px;max-width:42ch">${esc(copy.heroLede)}</p>` : ''}
-            ${facts.phone ? `<p style="margin:0"><a href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}" style="font-weight:700">${esc(facts.phone)}</a></p>` : ''}
+            ${copy.heroLede ? `<p style="color:var(--muted);font-size:.95rem;margin:0 0 16px;max-width:42ch">${esc(smartCut(copy.heroLede, 160))}</p>` : ''}
+            ${facts.phone ? `<p style="margin:0"><a href="${telHref}" style="font-weight:700">${esc(facts.phone)}</a></p>` : ''}
             ${facts.address ? `<p style="color:var(--muted);font-size:.92rem;margin:10px 0 0">${esc(facts.address)}</p>` : ''}
           </div>
           <div>
@@ -789,7 +948,7 @@ export async function buildRedesign(
           <div>
             <h4>Contact</h4>
             <ul>
-              ${facts.phone ? `<li><a href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">${esc(facts.phone)}</a></li>` : ''}
+              ${facts.phone ? `<li><a href="${telHref}">${esc(facts.phone)}</a></li>` : ''}
               ${facts.email ? `<li><a href="mailto:${esc(facts.email)}">${esc(facts.email)}</a></li>` : ''}
               <li><a href="#contact">Request a quote</a></li>
               ${preserved.bookingUrl ? `<li><a href="${esc(preserved.bookingUrl)}">Book online</a></li>` : ''}
@@ -803,8 +962,8 @@ export async function buildRedesign(
       </div>
     </footer>`;
 
-  const callBar = facts.phone
-    ? `<a class="call-bar" href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">Call ${esc(facts.phone)}</a>`
+  const callBar = telHref
+    ? `<a class="call-bar" href="${telHref}">${ICON.phone}Call ${esc(facts.phone!)}</a>`
     : '';
 
   /* ---------------- Design changes ---------------- */
@@ -818,11 +977,15 @@ export async function buildRedesign(
   }
 
   changes.unshift(
-    { label: 'Mobile-first responsive layout', detail: 'The original used a fixed-width layout. This one is fluid from 320px up, so it fits every phone without pinch-zooming.', kind: 'mobile' },
+    {
+      label: heroImage ? 'A full-width photo hero' : 'A bold hero',
+      detail: `${heroImage ? 'Your own photo now fills the top of the page behind' : 'The top of the page now leads with'} a headline that says what you do and where${featured ? ', with a real customer review beside it' : ''}${chips.length ? ` and your credentials (${chips.join(', ')})` : ''} — all read from your site.`,
+      kind: 'layout',
+    },
+    { label: 'Mobile-first responsive layout', detail: 'Fluid from 320px up, so it fits every phone without pinch-zooming, with a tap-to-call bar always in reach.', kind: 'mobile' },
     { label: 'Fluid type scale', detail: 'Headings scale with the viewport (clamp) instead of fixed pixel sizes, so the page reads correctly on a phone and a 27-inch monitor alike.', kind: 'type' },
-    { label: 'A real colour system', detail: `Five tokens — background, surface, text, muted and accent (${template.palette.accent}) — replace ad-hoc colours, so every element is consistent and contrast-checked.`, kind: 'colour' },
-    { label: 'Spacing rhythm and depth', detail: 'Consistent section spacing, card surfaces with hairline borders, and restrained shadows give the page hierarchy instead of a flat wall of text.', kind: 'layout' },
-    { label: 'Motion that respects the user', detail: 'Subtle hover and transition feedback, disabled automatically for anyone with reduced-motion enabled.', kind: 'motion' },
+    { label: 'A real colour system', detail: `Background, surface, text, muted and accent (${palette.accent}) tokens replace ad-hoc colours, so every element is consistent and contrast-checked.`, kind: 'colour' },
+    { label: 'Motion that respects the user', detail: 'Sections ease in as you scroll and buttons respond on hover — disabled automatically for anyone with reduced motion enabled.', kind: 'motion' },
     {
       label: 'Kept every page from your old site',
       detail: `Your footer links to the pages the original had${preserved.blogUrl ? ', including your blog' : ''}. Nothing became unreachable.`,
@@ -843,7 +1006,7 @@ export async function buildRedesign(
 <meta property="og:description" content="${esc(copy.metaDescription)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${esc(finalUrl)}">
-${images[0] ? `<meta property="og:image" content="${esc(images[0].src)}">` : ''}
+${heroImage ? `<meta property="og:image" content="${esc(heroImage.src)}">` : ''}
 <link rel="canonical" href="${esc(finalUrl)}">
 <style>${baseStyles({ ...template, palette })}</style>
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
@@ -852,63 +1015,36 @@ ${faqLd ? `<script type="application/ld+json">${faqLd}</script>` : ''}
 <body>
 ${header}
 <main id="main">
-
-  <section class="hero">
-    <div class="wrap">
-      <div class="hero-grid">
-        <div>
-          ${city ? `<p class="eyebrow">${esc(city)}${facts.address ? ' &middot; Local' : ''}</p>` : ''}
-          <h1>${esc(headline ?? (city ? `${businessName} — ${city}` : businessName))}</h1>
-          ${copy.heroLede ? `<p class="lede" style="margin-top:20px">${esc(copy.heroLede)}</p>` : ''}
-          <div class="hero-actions">
-            ${facts.phone ? `<a class="btn btn-primary" href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">Call ${esc(facts.phone)}</a>` : ''}
-            <a class="btn btn-ghost" href="#contact">Request a quote</a>
-            ${preserved.bookingUrl ? `<a class="btn btn-ghost" href="${esc(preserved.bookingUrl)}" rel="noopener">Book online</a>` : ''}
-          </div>
-        </div>
-        ${images[0] ? `<div class="hero-media"><img src="${esc(images[0].src)}" alt="${esc(images[0].alt || businessName)}" loading="eager" width="1200" height="900"></div>` : `<div class="hero-media placeholder">Add a photo of your team or work here</div>`}
-      </div>
-    </div>
-  </section>
-
-  ${
-    facts.services.length > 0 || facts.testimonials.length > 0 || facts.hours.length > 0 || facts.phone
-      ? `<section class="trust" aria-label="At a glance"><div class="wrap">
-      ${facts.services.length ? `<div class="trust-item"><b>${facts.services.length}</b> Services offered</div>` : ''}
-      ${facts.testimonials.length ? `<div class="trust-item"><b>${facts.testimonials.length}</b> Customer reviews</div>` : ''}
-      ${facts.hours.length ? `<div class="trust-item"><b>Open</b> Published hours</div>` : ''}
-      ${facts.phone ? `<div class="trust-item"><b>Call</b> ${esc(facts.phone)}</div>` : ''}
-    </div></section>`
-      : ''
-  }
-
+  ${heroSection}
+  ${statsSection}
   ${servicesSection}
   ${aboutSection}
+  ${gallerySection}
   ${testimonialsSection}
+  ${areasSection}
   ${extraSections}
-  ${hoursSection}
 
-  <section aria-labelledby="cta-h">
+  <section aria-labelledby="cta-h" class="reveal">
     <div class="wrap">
       <div class="cta-band">
-        <h2 id="cta-h">Ready to get started?</h2>
-        <p>${facts.phone ? `Call ${esc(facts.phone)} or send us a message.` : 'Send us a message and we will get back to you.'}</p>
+        <h2 id="cta-h">${noun && city ? `Need ${esc(withArticle(noun))} in ${esc(city)}?` : 'Ready to get started?'}</h2>
+        <p>${facts.phone ? `Call ${esc(facts.phone)} or send a message — ${cred.emergency ? 'emergency service is available.' : 'we will get back to you.'}` : 'Send us a message and we will get back to you.'}</p>
         <div class="hero-actions" style="justify-content:center">
-          ${facts.phone ? `<a class="btn btn-primary" href="tel:+1${esc(facts.phone.replace(/\D/g, ''))}">Call now</a>` : ''}
-          <a class="btn btn-ghost" href="#contact">Request a quote</a>
+          ${telHref ? `<a class="btn btn-primary btn-lg" href="${telHref}">${ICON.phone}Call now</a>` : ''}
+          <a class="btn btn-ghost btn-lg" href="#contact">Request a quote</a>
         </div>
       </div>
     </div>
   </section>
 
   ${contactSection}
-  ${bookingSection}
   ${faqSection}
 </main>
 ${footer}
 ${callBar}
 </body>
 </html>`;
+
 
   const words = countWords(out);
 

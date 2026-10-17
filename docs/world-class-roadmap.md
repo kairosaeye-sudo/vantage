@@ -71,6 +71,30 @@ you pass, and how many points to the next one. It sums each recommendation's
 measured weight in the score and ranks against the field's stored scores; the
 glow-up is the verified version of the same projection.
 
+## The free hook: score and glow-up (second pass)
+
+The two free steps are the whole funnel, so both now lead with the competitive
+picture and the visible result:
+
+- **Score:** "You rank #17 of 18" in the hero, a named leaderboard of the field
+  with you slotted in, a head-to-head against the field leader category by
+  category, and the free glow-up offered right after the leaderboard.
+- **Glow-up:** opens on a drag-to-compare slider of the site today against the
+  rebuild (live pages, desktop and phone), then the measured jump and the new
+  rank in the field ("#17 → #1 of 18, passing 16 competitors").
+- **The rebuild itself:** a full-bleed photo hero with a real review and the
+  site's own credentials, a facts band, service cards with matching photos and
+  links to the real service pages, gallery, review wall, service-area chips,
+  and contact with hours and a service picker.
+- **Extraction fixed:** services listed under a heading, hours split by `<br>`,
+  review attribution, full addresses, and grounded credentials (founding year,
+  licence number, licensed and insured, family-owned, emergency service,
+  service areas).
+- **Honesty fixes:** the fallback writer no longer promises policies the site
+  never states, titles are no longer hard-wired to electricians, and the
+  "design matched to your field" claim no longer appears when competitor sites
+  could not be fetched.
+
 ## Roadmap — the ground-breaking features, in order
 
 **1. AI Answer Share across engines, tracked weekly (Watch).**

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { runGlowUp, saveGlowUp, listGlowUps } from '@/lib/glowup-run';
+import { runGlowUp, saveGlowUp, listGlowUps, rescoreHtml } from '@/lib/glowup-run';
 import { savePreview } from '@/lib/preview-store';
 import { fetchSite } from '@/lib/fetch-site';
 import { buildRedesign } from '@/lib/redesign';
 import { TEMPLATES } from '@/lib/design-system';
 import { extractDesignSignals } from '@/lib/design-signals';
 import { buildFieldDesignBrief, type FieldSite } from '@/lib/field-design';
-import { getFieldSites } from '@/lib/field-from-db';
+import { getFieldSites, listFields } from '@/lib/field-from-db';
 import { detectFieldWithMeta } from '@/lib/field-detect';
 import { createProgress, updateProgress } from '@/lib/progress';
 import { recordFieldGap } from '@/lib/field-gaps';
@@ -176,6 +176,10 @@ export async function POST(req: Request) {
           if (row.error || row.overall === null) continue;
           try {
             const f = await fetchSite(row.url);
+            // fetchSite reports failure rather than throwing. An unreachable
+            // competitor must not enter the brief as a blank page — the redesign
+            // would then claim to be based on sites it never saw.
+            if (!f.ok || !f.html) continue;
             const signals = extractDesignSignals(f.html);
             sitesWithSignals.push({ url: row.url, score: row.overall, signals });
           } catch {
@@ -269,6 +273,49 @@ export async function POST(req: Request) {
         }
       } catch (e) {
         redesignError = e instanceof Error ? e.message : 'The visual rebuild failed.';
+      }
+    }
+
+    /* ---------------- Where the rebuild would rank ---------------- */
+
+    // The redesign is scored through the same engine, PageSpeed off, exactly like
+    // the before score — and fields are built the same way — so its rank in the
+    // field is a like-for-like measurement, not a projection.
+    let redesignScore: { overall: number; categories: Array<{ label: string; score: number }> } | null = null;
+    if (redesign) {
+      try {
+        const rs = await rescoreHtml(redesign.html, before.finalUrl, before.fetch.ttfbMs, before.fetch.totalMs);
+        redesignScore = { overall: rs.overall, categories: rs.categories.map((c) => ({ label: c.label, score: c.score })) };
+      } catch {
+        // The rank card is a bonus; the glow-up stands without it.
+      }
+    }
+
+    let fieldRank: { label: string; peers: Array<{ url: string; overall: number }> } | null = null;
+    if (fieldIdToUse) {
+      try {
+        const host = (u: string) => {
+          try {
+            return new URL(u).hostname.replace(/^www\./, '');
+          } catch {
+            return u;
+          }
+        };
+        const self = host(before.finalUrl);
+        const rows = await getFieldSites(fieldIdToUse);
+        const meta = (await listFields()).find((f) => f.id === fieldIdToUse);
+        const peers = rows
+          .filter((r) => !r.error && r.overall !== null && host(r.url) !== self)
+          .map((r) => ({ url: r.url, overall: r.overall as number }))
+          .sort((a, b) => b.overall - a.overall);
+        if (peers.length) {
+          fieldRank = {
+            label: meta ? `${meta.industry.toLowerCase()} in ${meta.location}` : 'sites in your field',
+            peers,
+          };
+        }
+      } catch {
+        // Same: never fail a finished glow-up over the comparison.
       }
     }
 
@@ -373,6 +420,10 @@ export async function POST(req: Request) {
       },
       /** The visual rebuild, when one was produced. */
       redesign,
+      /** The rebuild scored through the same engine as `before`. */
+      redesignScore,
+      /** The field's measured scores, for ranking before / after. */
+      fieldRank,
       redesignError,
       /** A redesign is a design judgement and must be seen before it ships. */
       redesignRequiresReview: redesign !== null,

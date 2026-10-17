@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import OvertakePlanner from './OvertakePlanner';
 import AiAnswers, { type AiAnswerReport } from './AiAnswers';
+import HeadToHead from './HeadToHead';
+import Leaderboard from '../components/Leaderboard';
 
 interface FailingFinding {
   label: string;
@@ -52,7 +54,7 @@ export interface Result {
     rows: Row[];
     recommendations: Recommendation[];
     /** Absent on scans saved before the overtake planner. */
-    peers?: Array<{ url: string; overall: number }>;
+    peers?: Array<{ url: string; overall: number; categories?: Record<string, number> }>;
     headline: string;
   };
   field: { industry: string; location: string };
@@ -74,6 +76,14 @@ function gradeColor(grade: string): string {
   return '#f87171';
 }
 
+function domainOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 export default function ResultsView({ data, shared = false }: { data: Result; shared?: boolean }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
@@ -81,6 +91,10 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
   const { side, field } = data;
   const { you, rows, recommendations, headline } = side;
   const scanId = data.scanId ?? null;
+  const peerList = side.peers ?? [];
+  const leader = peerList[0] ?? null;
+  // Ties go to the competitor: a tie is not a win.
+  const rank = 1 + peerList.filter((p) => p.overall >= you.overall).length;
   const goGlowUp = () => {
     sessionStorage.setItem('vantage:glowup-url', you.url);
     window.location.href = '/glowup';
@@ -111,6 +125,18 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
           {field.industry}
           {field.location && ` — ${field.location}`}
         </p>
+
+        {peerList.length > 0 && (
+          <p className="text-[22px] font-bold tracking-tight leading-tight mb-3">
+            You rank <span style={{ color: gradeColor(you.grade) }}>#{rank}</span>
+            <span className="text-[#5a5a66]"> of {peerList.length + 1}</span>
+            {leader && rank > 1 && (
+              <span className="block text-[13px] font-normal text-[#8a8a96] mt-1">
+                {domainOf(leader.url)} leads at {leader.overall}. You&rsquo;re {leader.overall - you.overall} points behind.
+              </span>
+            )}
+          </p>
+        )}
 
         <div className="flex items-end gap-3 mb-1">
           <span
@@ -143,6 +169,31 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
         </div>
         <p className="text-[13px] text-[#8a8a96] leading-relaxed">{headline}</p>
         <p className="text-[12px] text-[#5a5a66] mt-2 break-all">{you.url}</p>
+      </div>
+
+      {/* The field, by name */}
+      {peerList.length > 0 && (
+        <>
+          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
+            Your field
+          </h2>
+          <div className="card p-3 mb-5">
+            <Leaderboard peers={peerList} marks={[{ label: `You · ${domainOf(you.url)}`, score: you.overall, tone: 'you' }]} />
+          </div>
+        </>
+      )}
+
+      {/* The free glow-up: the hook after the hurt */}
+      <div className="card p-5 mb-5" style={{ background: 'linear-gradient(135deg,#1a1430,#121215)', borderColor: '#3b2f7a' }}>
+        <p className="text-[11px] uppercase tracking-wide text-[#b8a6ff] font-semibold mb-1.5">Free · about a minute</p>
+        <p className="text-[18px] font-bold leading-snug mb-1.5">See your site rebuilt to beat them</p>
+        <p className="text-[13px] text-[#a0a0ac] leading-relaxed mb-4">
+          We redesign your homepage from your own content, then score it against the same{' '}
+          {peerList.length ? `${peerList.length} competitors` : 'field'} — so you see exactly where it would rank.
+        </p>
+        <button className="btn-primary" onClick={goGlowUp}>
+          Glow up my homepage — free
+        </button>
       </div>
 
       {scanId && (
@@ -202,6 +253,8 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
           title="Your current site"
         />
       </div>
+
+      <HeadToHead rows={rows} you={{ url: you.url, overall: you.overall }} peers={peerList} />
 
       {/* Side by side */}
       <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
@@ -325,7 +378,7 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
         {shared ? 'Score your own site' : 'Score another site'}
       </Link>
       <button className="btn-primary mb-3" onClick={goGlowUp}>
-        See what your site could look like
+        Glow up my homepage — free
       </button>
       <Link href="/watch" className="btn-ghost">
         Monitor it weekly — $149/mo
