@@ -392,8 +392,20 @@ async function callAnthropic(
   }
 }
 
+/** Send one system + user prompt to whichever provider is configured. */
+export async function callModel(
+  cfg: ProviderConfig,
+  system: string,
+  user: string,
+  timeoutMs = 90000
+): Promise<string> {
+  return cfg.provider === 'anthropic'
+    ? callAnthropic(cfg, system, user, timeoutMs)
+    : callOpenAiCompatible(cfg, system, user, timeoutMs);
+}
+
 /** Pull the JSON object out of a model response that may include prose or a fence. */
-function parseJsonBlock(raw: string): Record<string, unknown> | null {
+export function parseJsonBlock(raw: string): Record<string, unknown> | null {
   let s = raw.trim();
   s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   const start = s.indexOf('{');
@@ -417,10 +429,7 @@ export async function enhanceWithAi(
   cfg: ProviderConfig
 ): Promise<EnhancedCopy> {
   const user = userPrompt(f, signals);
-  const raw =
-    cfg.provider === 'anthropic'
-      ? await callAnthropic(cfg, SYSTEM_PROMPT, user)
-      : await callOpenAiCompatible(cfg, SYSTEM_PROMPT, user);
+  const raw = await callModel(cfg, SYSTEM_PROMPT, user);
 
   const parsed = parseJsonBlock(raw);
   if (!parsed) throw new Error('Model did not return parseable JSON');

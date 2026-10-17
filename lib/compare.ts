@@ -210,6 +210,8 @@ export interface SideBySide {
   field: FieldStats;
   rows: ComparisonRow[];
   recommendations: Recommendation[];
+  /** Every scored peer, best first — what the overtake planner ranks against. */
+  peers: Array<{ url: string; overall: number }>;
   headline: string;
 }
 
@@ -259,6 +261,10 @@ export function buildSideBySide(
     field,
     rows,
     recommendations,
+    peers: peers
+      .filter((p) => !p.error && p.finalUrl !== you.finalUrl)
+      .map((p) => ({ url: p.finalUrl, overall: p.overall }))
+      .sort((a, b) => b.overall - a.overall),
     headline: `${rank} — ${shape}.`,
   };
 }

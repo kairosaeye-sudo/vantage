@@ -64,6 +64,17 @@ Configured via `GROQ_API_KEY` / `GROQ_MODEL` (default `qwen/qwen3.8-27b`). When 
 provider is set, a deterministic writer produces the copy instead — the glow-up still
 works, it just has less to say.
 
+**AI Answer Share** asks the same model the questions customers ask an assistant —
+"who are the best electricians in Austin, TX?" — and reports which businesses it
+names, how often the customer is one of them, and which rivals AI recommends that the
+field does not have yet (`lib/ai-answers.ts`, `POST /api/ai-answers`). It runs on
+demand from a saved report and is cached on the scan.
+
+Every saved score is a **shareable report** at `/r/<scanId>`, and the **overtake
+planner** on the results page shows which competitors a chosen set of fixes would pass.
+
+See `docs/world-class-roadmap.md` for the product review and what comes next.
+
 ## Configuration
 
 Any industry, any location, sites you choose.

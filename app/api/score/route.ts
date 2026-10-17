@@ -89,22 +89,27 @@ export async function POST(req: Request) {
     const vertical = `${field.industry} in ${field.location}`;
     const side = buildSideBySide(scored, peers, vertical);
 
+    // The whole report is stored, not just the side-by-side, so a saved scan can
+    // be reopened as a shareable link and enriched later (AI answer share).
+    let scanId: string | null = null;
     if (body.save) {
       try {
-        await saveScan({
+        scanId = await saveScan({
           url: scored.finalUrl,
-          fieldSlug,
+          // The matched field, not the request's — an auto-detected scan used to
+          // be stored with no field at all.
+          fieldSlug: field.slug,
           overall: scored.overall,
           grade: scored.grade,
           percentile: side.you.percentile,
-          result: side as unknown,
+          result: { side, field, noFieldSuggestion } as unknown,
         });
       } catch {
         // Logging must never break the score the user asked for.
       }
     }
 
-    return NextResponse.json({ ok: true, side, field, noFieldSuggestion });
+    return NextResponse.json({ ok: true, scanId, side, field, noFieldSuggestion });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : 'Scoring failed' },

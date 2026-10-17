@@ -219,3 +219,34 @@ export async function recentScans(limit = 20) {
     LIMIT ${limit}
   `;
 }
+
+export interface StoredScan {
+  id: string;
+  url: string;
+  overall: number | null;
+  grade: string | null;
+  percentile: number | null;
+  result: Record<string, unknown>;
+  createdAt: string;
+}
+
+export async function getScan(id: string): Promise<StoredScan | null> {
+  const sql = db();
+  const rows = await sql<StoredScan[]>`
+    SELECT id, url, overall, grade, percentile, result, created_at AS "createdAt"
+    FROM vantage_scans
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Set one top-level key on a scan's stored result without rewriting the rest. */
+export async function setScanResultKey(id: string, key: string, value: unknown): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE vantage_scans
+    SET result = jsonb_set(result, ${[key]}, ${sql.json(value as never)}, true)
+    WHERE id = ${id}
+  `;
+}
