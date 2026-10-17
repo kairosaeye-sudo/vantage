@@ -67,7 +67,12 @@ interface Result {
   /** The rebuild scored through the same engine as `before`. */
   redesignScore?: { overall: number; categories: CatScore[] } | null;
   /** The field's measured scores, for ranking before / after. */
-  fieldRank?: { label: string; peers: Array<{ url: string; overall: number }> } | null;
+  fieldRank?: {
+    label: string;
+    scope?: 'local' | 'nearby' | 'wider' | 'all';
+    note?: string | null;
+    peers: Array<{ url: string; overall: number; where?: string }>;
+  } | null;
   noFieldMessage: string | null;
   /** Where the site says it is, detected from the page. */
   detectedLocation?: {
@@ -286,6 +291,11 @@ export default function GlowUp() {
                 {res.fieldRank!.label}
                 {passed.length > 0 && <span className="text-[#4ade80]"> — passing {passed.length} competitor{passed.length === 1 ? '' : 's'}</span>}.
               </p>
+              {res.fieldRank!.scope && res.fieldRank!.scope !== 'local' && res.fieldRank!.note && (
+                <p className="text-[12px] text-[#8a8a96] leading-relaxed mt-2 pl-3 border-l-2 border-[#7c5cff]">
+                  {res.fieldRank!.note}
+                </p>
+              )}
               <div className="mt-4">
                 <Leaderboard
                   peers={peers}
@@ -359,7 +369,7 @@ export default function GlowUp() {
         )}
 
         {/* No field detected message */}
-        {res.noFieldMessage && (
+        {res.noFieldMessage && !res.fieldRank && (
           <div className="card p-4 mb-5" style={{ background: '#15121f', borderColor: '#7c5cff' }}>
             <p className="text-[13px] font-semibold mb-1">General glow-up</p>
             <p className="text-[12px] text-[#a0a0ac] leading-relaxed">{res.noFieldMessage}</p>

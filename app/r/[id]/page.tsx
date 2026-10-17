@@ -47,6 +47,7 @@ export default async function SharedReport({ params }: { params: { id: string } 
     side: report.side as unknown as Result['side'],
     field: report.field,
     noFieldSuggestion: report.noFieldSuggestion as Result['noFieldSuggestion'],
+    comparison: report.comparison as Result['comparison'],
     aiAnswers: report.aiAnswers as Result['aiAnswers'],
   };
   return <ResultsView data={data} shared />;

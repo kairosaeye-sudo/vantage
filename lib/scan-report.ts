@@ -14,6 +14,7 @@ export interface ScanReport {
   side: SideBySide;
   field: { slug: string | null; industry: string; location: string };
   noFieldSuggestion: unknown;
+  comparison: unknown;
   aiAnswers: AiAnswerReport | null;
 }
 
@@ -39,6 +40,7 @@ export async function loadScanReport(id: string): Promise<ScanReport | null> {
     side: { ...side, peers: side.peers ?? [] },
     field: { slug: field.slug ?? null, industry: field.industry, location: field.location },
     noFieldSuggestion: r.noFieldSuggestion ?? null,
+    comparison: r.comparison ?? null,
     aiAnswers: (r.aiAnswers as AiAnswerReport | undefined) ?? null,
   };
 }

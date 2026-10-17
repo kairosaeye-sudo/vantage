@@ -54,11 +54,19 @@ export interface Result {
     rows: Row[];
     recommendations: Recommendation[];
     /** Absent on scans saved before the overtake planner. */
-    peers?: Array<{ url: string; overall: number; categories?: Record<string, number> }>;
+    peers?: Array<{ url: string; overall: number; categories?: Record<string, number>; where?: string }>;
     headline: string;
   };
   field: { industry: string; location: string };
   noFieldSuggestion: NoFieldSuggestion | null;
+  /** Who the site was compared against, when the comparison had to search wider. */
+  comparison?: {
+    scope: 'local' | 'nearby' | 'wider' | 'all';
+    label: string;
+    note: string | null;
+    places: string[];
+    nearestMiles: number | null;
+  } | null;
   aiAnswers?: AiAnswerReport | null;
 }
 
@@ -92,6 +100,7 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
   const { you, rows, recommendations, headline } = side;
   const scanId = data.scanId ?? null;
   const peerList = side.peers ?? [];
+  const wider = Boolean(data.comparison && data.comparison.scope !== 'local');
   const leader = peerList[0] ?? null;
   // Ties go to the competitor: a tie is not a win.
   const rank = 1 + peerList.filter((p) => p.overall >= you.overall).length;
@@ -130,6 +139,7 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
           <p className="text-[22px] font-bold tracking-tight leading-tight mb-3">
             You rank <span style={{ color: gradeColor(you.grade) }}>#{rank}</span>
             <span className="text-[#5a5a66]"> of {peerList.length + 1}</span>
+            {wider && <span className="block text-[13px] font-semibold text-[#b8a6ff] mt-1">among {data.comparison!.label}</span>}
             {leader && rank > 1 && (
               <span className="block text-[13px] font-normal text-[#8a8a96] mt-1">
                 {domainOf(leader.url)} leads at {leader.overall}. You&rsquo;re {leader.overall - you.overall} points behind.
@@ -171,11 +181,29 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
         <p className="text-[12px] text-[#5a5a66] mt-2 break-all">{you.url}</p>
       </div>
 
+      {/* The comparison had to search wider than their town — say so, plainly */}
+      {wider && data.comparison!.note && (
+        <div className="card p-4 mb-5 border-l-2 border-l-[#7c5cff]">
+          <p className="text-[12px] uppercase tracking-wide text-[#b8a6ff] font-semibold mb-1.5">
+            {data.comparison!.scope === 'nearby'
+              ? 'Searched nearby'
+              : data.comparison!.scope === 'wider'
+                ? 'Searched wider'
+                : 'Searched every field'}
+          </p>
+          <p className="text-[13px] text-[#a0a0ac] leading-relaxed">{data.comparison!.note}</p>
+          <p className="text-[12px] text-[#5a5a66] mt-2 leading-relaxed">
+            We&rsquo;ve logged {field.location ? field.location : 'your area'} as a field to build — your next
+            score will be against your own local competitors.
+          </p>
+        </div>
+      )}
+
       {/* The field, by name */}
       {peerList.length > 0 && (
         <>
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-[#8a8a96] mb-3">
-            Your field
+            {wider ? `Compared with ${data.comparison!.label}` : 'Your field'}
           </h2>
           <div className="card p-3 mb-5">
             <Leaderboard peers={peerList} marks={[{ label: `You · ${domainOf(you.url)}`, score: you.overall, tone: 'you' }]} />
@@ -206,24 +234,6 @@ export default function ResultsView({ data, shared = false }: { data: Result; sh
               Measured {new Date(data.measuredAt).toLocaleDateString()}
             </span>
           )}
-        </div>
-      )}
-
-      {/* No-field suggestion banner */}
-      {data.noFieldSuggestion && (
-        <div className="card p-4 mb-5 border-l-2 border-l-[#7c5cff]">
-          <p className="text-[13px] text-[#a0a0ac] leading-relaxed">
-            {data.noFieldSuggestion.message}
-          </p>
-          <p className="text-[12px] text-[#5a5a66] mt-2">
-            We're building a {data.noFieldSuggestion.detectedIndustry} field for{' '}
-            {data.noFieldSuggestion.detectedCity ?? data.noFieldSuggestion.detectedRegion ?? 'your area'}.
-            Want to be first?{' '}
-            <Link href="/glowup" className="text-[#7c5cff] font-semibold">
-              Run a glow-up
-            </Link>{' '}
-            and we'll notify you when it's ready.
-          </p>
         </div>
       )}
 

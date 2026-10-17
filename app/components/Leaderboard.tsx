@@ -3,6 +3,8 @@
 export interface LeaderPeer {
   url: string;
   overall: number;
+  /** Where the peer is, shown when the comparison spans several places. */
+  where?: string;
 }
 
 export interface LeaderMark {
@@ -26,7 +28,7 @@ const TONE: Record<LeaderMark['tone'], { bar: string; text: string; bg: string }
   glow: { bar: '#7c5cff', text: '#ffffff', bg: 'rgba(124,92,255,.12)' },
 };
 
-type Row = { key: string; name: string; score: number; mark?: LeaderMark };
+type Row = { key: string; name: string; score: number; where?: string; mark?: LeaderMark };
 
 /**
  * The field as a ranked list of named competitors, with the customer slotted in.
@@ -49,7 +51,7 @@ export default function Leaderboard({
   around?: number;
 }) {
   const rows: Row[] = [
-    ...peers.map((p): Row => ({ key: p.url, name: domain(p.url), score: p.overall })),
+    ...peers.map((p): Row => ({ key: p.url, name: domain(p.url), score: p.overall, where: p.where })),
     ...marks.map((m): Row => ({ key: `mark:${m.label}`, name: m.label, score: m.score, mark: m })),
   ].sort((a, b) => b.score - a.score || (a.mark ? 1 : 0) - (b.mark ? 1 : 0));
 
@@ -98,6 +100,7 @@ export default function Leaderboard({
                 style={{ color: r.mark ? TONE[r.mark.tone].text : '#c9c9d2' }}
               >
                 {r.name}
+                {r.where && <span className="text-[#5a5a66] font-normal"> · {r.where}</span>}
               </p>
               <div className="h-1.5 rounded-full bg-[#1c1c21] overflow-hidden">
                 <div

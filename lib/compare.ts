@@ -211,7 +211,7 @@ export interface SideBySide {
   rows: ComparisonRow[];
   recommendations: Recommendation[];
   /** Every scored peer, best first — what the overtake planner ranks against. */
-  peers: Array<{ url: string; overall: number; categories?: Record<string, number> }>;
+  peers: Array<{ url: string; overall: number; categories?: Record<string, number>; where?: string }>;
   headline: string;
 }
 

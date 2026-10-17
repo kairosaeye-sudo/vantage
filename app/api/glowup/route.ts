@@ -7,7 +7,8 @@ import { buildRedesign } from '@/lib/redesign';
 import { TEMPLATES } from '@/lib/design-system';
 import { extractDesignSignals } from '@/lib/design-signals';
 import { buildFieldDesignBrief, type FieldSite } from '@/lib/field-design';
-import { getFieldSites, listFields } from '@/lib/field-from-db';
+import { listFields } from '@/lib/field-from-db';
+import { resolveComparison, type ComparisonSet } from '@/lib/comparison-set';
 import { detectFieldWithMeta } from '@/lib/field-detect';
 import { createProgress, updateProgress } from '@/lib/progress';
 import { recordFieldGap } from '@/lib/field-gaps';
@@ -99,89 +100,99 @@ export async function POST(req: Request) {
       detectedCity: null, detectedRegion: null, locationSource: null, locationEvidence: null,
     };
 
-    const effectiveFieldId = body.fieldId ?? null;
-
-    if (!effectiveFieldId && originalHtml) {
-      await updateProgress(progressId, { stage: 'detecting', message: 'Detecting your field…', percent: 30 });
-      await sleep(700);
-      detectedField = await detectFieldWithMeta(originalHtml);
-      if (detectedField.fieldId) {
-        const locNote = detectedField.detectedCity
-          ? ` — location read from your site: ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''}`
-          : '';
-        await updateProgress(progressId, {
-          stage: 'detected',
-          message: `Field detected: ${detectedField.fieldSlug}${locNote}`,
-          percent: 35,
-          metadata: {
-            fieldSlug: detectedField.fieldSlug,
-            fieldIndustry: detectedField.fieldIndustry,
-            fieldLocation: detectedField.fieldLocation,
-            detectedCity: detectedField.detectedCity,
-            detectedRegion: detectedField.detectedRegion,
-            locationSource: detectedField.locationSource,
-          },
-        });
-        await sleep(500);
-      } else {
-        // No field matched. Record the gap so we learn which field to build
-        // next, and guess the industry so the gap is actionable.
-        const industryGuess = guessIndustry(originalHtml);
-        const suggestedSlug =
-          industryGuess.industry && detectedField.detectedCity
-            ? `${industryGuess.industry.replace(/\s+/g, '-')}-${slugifyLocation(
-                detectedField.detectedCity,
-                detectedField.detectedRegion
-              )}`
-            : null;
-
-        await recordFieldGap({
-          url: before.finalUrl,
-          industry: industryGuess.industry,
-          city: detectedField.detectedCity,
-          region: detectedField.detectedRegion,
-          locationSource: detectedField.locationSource,
-          evidence: detectedField.locationEvidence ?? industryGuess.evidence,
-          suggestedSlug,
-        });
-
-        const locNote = detectedField.detectedCity
-          ? ` Your site appears to be in ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''} — we don't have a field built for that area yet.`
-          : '';
-        await updateProgress(progressId, {
-          stage: 'no-field',
-          message: `No matching field found — doing a general glow-up with best practices.${locNote}`,
-          percent: 35,
-          metadata: {
-            detectedCity: detectedField.detectedCity,
-            detectedRegion: detectedField.detectedRegion,
-            locationSource: detectedField.locationSource,
-          },
-        });
-        await sleep(600);
-      }
+    // Who this site is compared against: its local field when we have one,
+    // otherwise the nearest same-industry fields, widening until there is one.
+    // Detection alone is not enough — it can match the right industry in the
+    // wrong city, and that must never be presented as local competition.
+    let comparison: ComparisonSet | null = null;
+    await updateProgress(progressId, { stage: 'detecting', message: 'Finding your competitors…', percent: 30 });
+    await sleep(700);
+    if (originalHtml) detectedField = await detectFieldWithMeta(originalHtml);
+    const industryGuess = originalHtml ? guessIndustry(originalHtml) : { industry: null, evidence: null };
+    try {
+      const explicit = body.fieldId ? (await listFields()).find((f) => f.id === body.fieldId) : undefined;
+      comparison = await resolveComparison({
+        fieldSlug: explicit?.slug ?? null,
+        industry: industryGuess.industry ?? detectedField.fieldIndustry,
+        city: detectedField.detectedCity,
+        region: detectedField.detectedRegion,
+        selfUrl: before.finalUrl,
+      });
+    } catch {
+      comparison = null; // the rebuild does not depend on a comparison
     }
+    const localField = comparison?.scope === 'local' ? comparison.fields[0] : null;
 
-    const fieldIdToUse = effectiveFieldId ?? detectedField.fieldId;
+    if (localField) {
+      await updateProgress(progressId, {
+        stage: 'detected',
+        message: `Competitors found: ${comparison!.peers.length} ${comparison!.label}`,
+        percent: 35,
+        metadata: {
+          fieldSlug: localField.slug,
+          fieldIndustry: localField.industry,
+          fieldLocation: localField.location,
+          detectedCity: detectedField.detectedCity,
+          detectedRegion: detectedField.detectedRegion,
+          locationSource: detectedField.locationSource,
+          competitorCount: comparison!.peers.length,
+        },
+      });
+    } else {
+      // Not a local field: record the demand so the right field gets built.
+      const suggestedSlug =
+        industryGuess.industry && detectedField.detectedCity
+          ? `${industryGuess.industry.replace(/\s+/g, '-')}-${slugifyLocation(
+              detectedField.detectedCity,
+              detectedField.detectedRegion
+            )}`
+          : null;
+      await recordFieldGap({
+        url: before.finalUrl,
+        industry: industryGuess.industry,
+        city: detectedField.detectedCity,
+        region: detectedField.detectedRegion,
+        locationSource: detectedField.locationSource,
+        evidence: detectedField.locationEvidence ?? industryGuess.evidence,
+        suggestedSlug,
+      });
+      await updateProgress(progressId, {
+        stage: comparison ? 'widened' : 'no-field',
+        message: comparison
+          ? `No local field yet — searched wider: ${comparison.peers.length} ${comparison.label}`
+          : 'No matching field found — doing a general glow-up with best practices.',
+        percent: 35,
+        metadata: {
+          detectedCity: detectedField.detectedCity,
+          detectedRegion: detectedField.detectedRegion,
+          locationSource: detectedField.locationSource,
+          competitorCount: comparison?.peers.length ?? 0,
+        },
+      });
+    }
+    await sleep(500);
+
+    const fieldIdToUse = localField?.id ?? null;
 
     /* ---------------- Field design brief ---------------- */
 
+    // Design cues come from the same industry only — a dentist's palette says
+    // nothing about what an electrician's customers expect.
     let fieldBrief = null;
-    if (fieldIdToUse) {
+    const briefSites = comparison && comparison.scope !== 'all' ? comparison.peers.slice(0, 20) : [];
+    if (briefSites.length) {
       try {
         await updateProgress(progressId, { stage: 'analyzing', message: 'Analyzing competitor sites…', percent: 40 });
-        const fieldSites = await getFieldSites(fieldIdToUse);
         const sitesWithSignals: FieldSite[] = [];
-        for (const row of fieldSites) {
-          if (row.error || row.overall === null) continue;
+        for (const peer of briefSites) {
           try {
-            const f = await fetchSite(row.url);
+            const f = await fetchSite(peer.finalUrl);
             // fetchSite reports failure rather than throwing. An unreachable
             // competitor must not enter the brief as a blank page — the redesign
             // would then claim to be based on sites it never saw.
             if (!f.ok || !f.html) continue;
             const signals = extractDesignSignals(f.html);
-            sitesWithSignals.push({ url: row.url, score: row.overall, signals });
+            sitesWithSignals.push({ url: peer.finalUrl, score: peer.overall, signals });
           } catch {
             // Skip sites that can't be fetched
           }
@@ -291,32 +302,25 @@ export async function POST(req: Request) {
       }
     }
 
-    let fieldRank: { label: string; peers: Array<{ url: string; overall: number }> } | null = null;
-    if (fieldIdToUse) {
-      try {
-        const host = (u: string) => {
-          try {
-            return new URL(u).hostname.replace(/^www\./, '');
-          } catch {
-            return u;
-          }
-        };
-        const self = host(before.finalUrl);
-        const rows = await getFieldSites(fieldIdToUse);
-        const meta = (await listFields()).find((f) => f.id === fieldIdToUse);
-        const peers = rows
-          .filter((r) => !r.error && r.overall !== null && host(r.url) !== self)
-          .map((r) => ({ url: r.url, overall: r.overall as number }))
-          .sort((a, b) => b.overall - a.overall);
-        if (peers.length) {
-          fieldRank = {
-            label: meta ? `${meta.industry.toLowerCase()} in ${meta.location}` : 'sites in your field',
-            peers,
-          };
-        }
-      } catch {
-        // Same: never fail a finished glow-up over the comparison.
-      }
+    let fieldRank: {
+      label: string;
+      scope: string;
+      note: string | null;
+      peers: Array<{ url: string; overall: number; where?: string }>;
+    } | null = null;
+    if (comparison && comparison.peers.length) {
+      fieldRank = {
+        label: comparison.label,
+        scope: comparison.scope,
+        note: comparison.note,
+        peers: comparison.peers
+          .map((p) => ({
+            url: p.finalUrl,
+            overall: p.overall,
+            where: comparison!.scope === 'local' ? undefined : comparison!.peerWhere[p.finalUrl],
+          }))
+          .sort((x, y) => y.overall - x.overall),
+      };
     }
 
     /* ---------------- Preview ---------------- */
@@ -387,7 +391,7 @@ export async function POST(req: Request) {
         afterScore: record.afterScore,
         appliedCount: record.appliedCount,
         hasRedesign: redesign !== null,
-        fieldSlug: detectedField.fieldSlug ?? null,
+        fieldSlug: localField?.slug ?? null,
         previewId,
       })
     );
@@ -440,7 +444,15 @@ export async function POST(req: Request) {
         note: 'Before and after are both measured without PageSpeed Insights so they are comparable. The free Check calls PageSpeed and may report a different figure for the same site.',
       },
       /** Field auto-detection result. */
-      detectedField: detectedField.fieldId ? detectedField : null,
+      detectedField: localField
+        ? {
+            ...detectedField,
+            fieldId: localField.id,
+            fieldSlug: localField.slug,
+            fieldIndustry: localField.industry,
+            fieldLocation: localField.location,
+          }
+        : null,
       /** Where the site says it is, even when no field matched. */
       detectedLocation: detectedField.detectedCity
         ? {
@@ -452,9 +464,10 @@ export async function POST(req: Request) {
         : null,
       /** Message when no field was detected — the glow-up uses general best practices. */
       noFieldMessage: !fieldIdToUse
-        ? detectedField.detectedCity
-          ? `No field built for ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''} yet — doing a general glow-up with best practices and modern design.`
-          : 'No matching field found — doing a general glow-up with best practices and modern design'
+        ? comparison?.note ??
+          (detectedField.detectedCity
+            ? `No field built for ${detectedField.detectedCity}${detectedField.detectedRegion ? `, ${detectedField.detectedRegion}` : ''} yet — doing a general glow-up with best practices and modern design.`
+            : 'No matching field found — doing a general glow-up with best practices and modern design')
         : null,
     });
   } catch (e) {

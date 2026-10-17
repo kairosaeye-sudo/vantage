@@ -95,6 +95,25 @@ picture and the visible result:
   "design matched to your field" claim no longer appears when competitor sites
   could not be fetched.
 
+## No local field: search wider (third pass)
+
+`lib/comparison-set.ts` decides who a site is compared against, for both the
+score and the glow-up, widening until there is a field:
+
+| Ring | When | Example label |
+|---|---|---|
+| local | same industry, same city | electricians in Austin, TX |
+| nearby | same industry within ~350 miles | electricians near Waco, TX |
+| wider | same industry anywhere, nearest first | electricians in Austin, TX and Denver, CO |
+| all | the industry has no field anywhere | local business sites we have measured |
+
+Every ring beyond local says so on the page, peers show their city, and the
+miss is recorded as a field gap so the local field gets built. This replaced
+two silent errors: the score fell back to whichever field was listed first
+(any industry), and detection matched the right industry in the wrong city
+and presented it as local. The home page also no longer pre-selects the first
+field, which had been bypassing detection for every visitor.
+
 ## Roadmap — the ground-breaking features, in order
 
 **1. AI Answer Share across engines, tracked weekly (Watch).**

@@ -23,8 +23,10 @@ export default function Home() {
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
+          // Leave the choice empty: an empty field means "find my competitors",
+          // which reads the site's own industry and town. Pre-selecting the
+          // first field silently compared every site against it.
           setFields(d.fields);
-          if (d.fields.length > 0) setFieldSlug(d.fields[0].slug);
         }
       })
       .catch(() => setError('Could not load fields.'))
